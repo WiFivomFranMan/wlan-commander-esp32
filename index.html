@@ -1,0 +1,665 @@
+<!-- WLAN Commander — ESP32-C5 sniffer firmware. Flash from Chrome or Edge. -->
+<title>WLAN Commander C5 Sniffer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;800&family=JetBrains+Mono:wght@400;500;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+:root {
+  --ground:      #EDEFF2;
+  --surface:     #FFFFFF;
+  --surface-2:   #E4E8ED;
+  --ink:         #161A20;
+  --ink-2:       #4E5762;
+  --ink-3:       #78828E;
+  --rule:        #D2D7DE;
+  --rule-strong: #B4BCC6;
+  --accent:      #B85A18;
+  --accent-soft: #F0E0D2;
+
+  /* Channel-width ramp: cool = narrow, hot = wide. Same convention the
+     signal heatmaps in this project use, where red means strong. */
+  --w40:  #31647F;
+  --w80:  #C07C14;
+  --w160: #B85A18;
+  --w320: #8E2C1C;
+
+  --ok:   #2E6B4F;
+
+  --shell: 1180px;
+  --measure: 68ch;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --ground:      #101319;
+    --surface:     #171B22;
+    --surface-2:   #1F242D;
+    --ink:         #E4E8ED;
+    --ink-2:       #9DA7B3;
+    --ink-3:       #737E8B;
+    --rule:        #272E38;
+    --rule-strong: #3A434F;
+    --accent:      #E08B44;
+    --accent-soft: #33251A;
+
+    --w40:  #5A9CBC;
+    --w80:  #D9A03C;
+    --w160: #E08B44;
+    --w320: #C9563C;
+
+    --ok:   #63AE87;
+  }
+}
+
+:root[data-theme="dark"] {
+  --ground:      #101319;
+  --surface:     #171B22;
+  --surface-2:   #1F242D;
+  --ink:         #E4E8ED;
+  --ink-2:       #9DA7B3;
+  --ink-3:       #737E8B;
+  --rule:        #272E38;
+  --rule-strong: #3A434F;
+  --accent:      #E08B44;
+  --accent-soft: #33251A;
+
+  --w40:  #5A9CBC;
+  --w80:  #D9A03C;
+  --w160: #E08B44;
+  --w320: #C9563C;
+
+  --ok:   #63AE87;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
+  font-size: 17px;
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+}
+
+.shell {
+  max-width: var(--shell);
+  margin: 0 auto;
+  padding: 0 28px;
+}
+
+h1, h2, h3, .eyebrow, .stat-label, th, .btn, .chip {
+  font-family: Archivo, "Helvetica Neue", Arial, sans-serif;
+}
+
+code, kbd, .mono, .val, pre {
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-ligatures: none;
+}
+
+a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+a:focus-visible, .btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+.eyebrow {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+}
+
+/* ---------- masthead ---------- */
+
+.masthead {
+  border-bottom: 1px solid var(--rule);
+  background: var(--surface);
+  padding: 46px 0 0;
+}
+
+.masthead-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+  gap: 56px;
+  align-items: start;
+}
+
+h1 {
+  font-size: clamp(38px, 5.4vw, 62px);
+  font-weight: 800;
+  letter-spacing: -0.033em;
+  line-height: 1.02;
+  text-wrap: balance;
+  margin: 14px 0 0;
+}
+
+h1 .thin { font-weight: 500; color: var(--ink-2); display: block; }
+
+.lede {
+  max-width: var(--measure);
+  margin: 22px 0 0;
+  font-size: 19px;
+  color: var(--ink-2);
+}
+
+.lede strong { color: var(--ink); font-weight: 600; }
+
+.masthead-side {
+  border-left: 1px solid var(--rule);
+  padding-left: 28px;
+  margin-top: 6px;
+}
+
+.statlist {
+  display: grid;
+  gap: 0;
+  margin: 0;
+}
+
+.statrow {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr);
+  gap: 14px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--rule);
+  align-items: baseline;
+}
+.statrow:first-child { border-top: 1px solid var(--rule); }
+
+.stat-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.val {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+  word-break: break-word;
+}
+
+.getrow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+  margin: 34px 0 0;
+  padding: 0 0 40px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+  background: var(--accent);
+  color: #FFFFFF;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  padding: 12px 20px;
+  border-radius: 2px;
+}
+.btn .sz {
+  font-family: "JetBrains Mono", monospace;
+  font-weight: 400;
+  font-size: 12px;
+  opacity: 0.82;
+}
+.btn:hover { filter: brightness(1.08); }
+.btn-ghost { background: transparent; color: var(--accent); border: 1px solid var(--rule-strong); }
+.btn-ghost:hover { border-color: var(--accent); filter: none; }
+
+.hash {
+  font-size: 11.5px;
+  color: var(--ink-3);
+  word-break: break-all;
+  max-width: 46ch;
+  line-height: 1.5;
+}
+
+/* ---------- sections ---------- */
+
+section { padding: 62px 0 0; }
+
+.sec-head {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  border-bottom: 1px solid var(--rule-strong);
+  padding-bottom: 10px;
+  margin-bottom: 30px;
+}
+
+h2 {
+  font-size: 23px;
+  font-weight: 700;
+  letter-spacing: -0.018em;
+  margin: 0;
+  text-wrap: balance;
+}
+
+.sec-head .eyebrow { margin-left: auto; text-align: right; }
+
+.prose { max-width: var(--measure); }
+.prose p { margin: 0 0 18px; }
+.prose p:last-child { margin-bottom: 0; }
+
+/* ---------- spectrum chart ---------- */
+
+.chart-wrap {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  padding: 26px 22px 18px;
+  overflow-x: auto;
+}
+
+.chart-wrap svg { display: block; min-width: 830px; width: 100%; height: auto; }
+
+.sv-band  { font-family: "JetBrains Mono", monospace; font-size: 11px; font-weight: 700; fill: var(--ink); letter-spacing: 0.06em; }
+.sv-unii  { font-family: "JetBrains Mono", monospace; font-size: 9px;  fill: var(--ink-3); letter-spacing: 0.04em; }
+.sv-freq  { font-family: "JetBrains Mono", monospace; font-size: 9px;  fill: var(--ink-3); font-variant-numeric: tabular-nums; }
+.sv-card  { font-family: Archivo, sans-serif; font-size: 12px; font-weight: 600; fill: var(--ink); }
+.sv-chip  { font-family: "JetBrains Mono", monospace; font-size: 9.5px; fill: var(--ink-3); }
+.sv-inbar { font-family: "JetBrains Mono", monospace; font-size: 10px; font-weight: 700; fill: #FFFFFF; font-variant-numeric: tabular-nums; }
+.sv-rule  { stroke: var(--rule); stroke-width: 1; }
+.sv-tick  { stroke: var(--rule-strong); stroke-width: 1; }
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  align-items: center;
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--rule);
+}
+
+.lg {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  color: var(--ink-2);
+}
+.lg i {
+  width: 22px;
+  height: 11px;
+  border-radius: 1px;
+  display: inline-block;
+}
+
+.caption {
+  margin: 14px 0 0;
+  font-size: 14px;
+  color: var(--ink-3);
+  max-width: var(--measure);
+  line-height: 1.55;
+}
+
+/* ---------- tables ---------- */
+
+.tablewrap { overflow-x: auto; }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+  min-width: 560px;
+}
+
+th {
+  text-align: left;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  padding: 0 16px 9px 0;
+  border-bottom: 1px solid var(--rule-strong);
+  white-space: nowrap;
+}
+
+td {
+  padding: 12px 16px 12px 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+  color: var(--ink-2);
+}
+
+td:first-child { color: var(--ink); font-weight: 600; font-family: Archivo, sans-serif; font-size: 14.5px; }
+td .mono { font-size: 13px; color: var(--ink); }
+
+.chip {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 2px;
+  white-space: nowrap;
+}
+.chip-ok    { background: var(--accent-soft); color: var(--accent); }
+.chip-untested { background: transparent; color: var(--ink-3); border: 1px solid var(--rule-strong); }
+
+/* ---------- feature list ---------- */
+
+.features {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(268px, 1fr));
+  gap: 0 40px;
+}
+
+.feat {
+  padding: 18px 0;
+  border-top: 1px solid var(--rule);
+}
+
+.feat h3 {
+  margin: 0 0 5px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+
+.feat p { margin: 0; font-size: 15px; color: var(--ink-2); line-height: 1.55; }
+.feat code { font-size: 12.5px; color: var(--ink); }
+
+/* ---------- steps ---------- */
+
+.steps { display: grid; gap: 26px; max-width: 860px; }
+
+.step { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 18px; }
+
+.step-n {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  padding-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.step h3 { margin: 0 0 6px; font-size: 15px; font-weight: 600; }
+.step p { margin: 0 0 12px; font-size: 15.5px; color: var(--ink-2); max-width: var(--measure); }
+.step p:last-child { margin-bottom: 0; }
+
+pre {
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-left: 2px solid var(--rule-strong);
+  border-radius: 2px;
+  padding: 13px 16px;
+  overflow-x: auto;
+  font-size: 12.5px;
+  line-height: 1.65;
+  margin: 0 0 12px;
+  color: var(--ink);
+}
+pre:last-child { margin-bottom: 0; }
+pre .cm { color: var(--ink-3); }
+
+.warn {
+  border-left: 2px solid var(--accent);
+  padding-left: 14px;
+  font-size: 15px;
+  color: var(--ink-2);
+  max-width: var(--measure);
+}
+
+/* ---------- hard list ---------- */
+
+.hard { display: grid; gap: 0; }
+
+.hard-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 260px) minmax(0, 1fr);
+  gap: 32px;
+  padding: 20px 0;
+  border-top: 1px solid var(--rule);
+  align-items: start;
+}
+
+.hard-row h3 {
+  margin: 0;
+  font-size: 14.5px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: var(--ink);
+}
+.hard-row p { margin: 0; font-size: 15.5px; color: var(--ink-2); max-width: var(--measure); }
+
+/* ---------- footer ---------- */
+
+footer {
+  margin-top: 70px;
+  border-top: 1px solid var(--rule-strong);
+  background: var(--surface);
+  padding: 30px 0 44px;
+}
+
+.footgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(188px, 1fr));
+  gap: 26px 26px;
+}
+
+.footgrid p { margin: 6px 0 0; font-size: 13.5px; color: var(--ink-2); }
+.footgrid .mono { font-size: 12px; color: var(--ink-2); word-break: break-all; }
+
+@media (max-width: 860px) {
+  .masthead-grid { grid-template-columns: minmax(0, 1fr); gap: 34px; }
+  .masthead-side { border-left: 0; padding-left: 0; }
+  .hard-row { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .sec-head { flex-wrap: wrap; gap: 6px 16px; }
+  .sec-head .eyebrow { margin-left: 0; text-align: left; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+
+/* ---------- shared site nav (self-contained; do not depend on page tokens) ---------- */
+.wcnav {
+  --wcnav-bg:      rgba(252,252,250,0.88);
+  --wcnav-ink:     #191c22;
+  --wcnav-ink-2:   #6b7280;
+  --wcnav-rule:    #dcdcd6;
+  position: sticky; top: 0; z-index: 100;
+  background: var(--wcnav-bg);
+  border-bottom: 1px solid var(--wcnav-rule);
+  backdrop-filter: saturate(1.4) blur(10px);
+  -webkit-backdrop-filter: saturate(1.4) blur(10px);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .wcnav {
+    --wcnav-bg:    rgba(16,18,21,0.88);
+    --wcnav-ink:   #e9eaee;
+    --wcnav-ink-2: #949aa5;
+    --wcnav-rule:  #2a2d33;
+  }
+}
+:root[data-theme="dark"] .wcnav {
+  --wcnav-bg:    rgba(16,18,21,0.88);
+  --wcnav-ink:   #e9eaee;
+  --wcnav-ink-2: #949aa5;
+  --wcnav-rule:  #2a2d33;
+}
+.wcnav-in {
+  max-width: 1180px; margin: 0 auto; padding: 0 28px;
+  display: flex; align-items: center; gap: 28px; min-height: 48px;
+}
+.wcnav-brand {
+  font-size: 13px; font-weight: 700; letter-spacing: -0.01em;
+  color: var(--wcnav-ink); text-decoration: none; white-space: nowrap;
+}
+.wcnav-brand span { color: var(--wcnav-ink-2); font-weight: 500; }
+.wcnav-links { display: flex; gap: 4px; margin-left: auto; flex-wrap: wrap; }
+.wcnav-links a {
+  display: block; padding: 14px 10px 12px;
+  font-size: 12.5px; font-weight: 500; letter-spacing: 0.01em;
+  color: var(--wcnav-ink-2); text-decoration: none;
+  border-bottom: 2px solid transparent;
+}
+.wcnav-links a:hover { color: var(--wcnav-ink); }
+.wcnav-links a[aria-current="page"] {
+  color: var(--wcnav-ink); font-weight: 600;
+  border-bottom-color: currentColor;
+}
+.wcnav-links a:focus-visible { outline: 2px solid currentColor; outline-offset: -4px; border-radius: 2px; }
+@media (max-width: 560px) {
+  .wcnav-in { padding: 0 16px; gap: 12px; min-height: 44px; }
+  .wcnav-brand { font-size: 12px; }
+  .wcnav-links a { padding: 12px 7px 10px; font-size: 12px; }
+}
+/* ---- web installer ---- */
+.installer { display:flex; flex-wrap:wrap; gap:1rem; align-items:center; margin:1.25rem 0 0; }
+esp-web-install-button { --esp-tools-button-color: var(--accent); }
+esp-web-install-button[install-unsupported] { display:none; }
+.unsupported { display:none; }
+esp-web-install-button[install-unsupported] ~ .unsupported { display:block; }
+.warn { border-left:3px solid var(--accent); background:var(--accent-soft);
+        padding:.85rem 1rem; border-radius:0 6px 6px 0; margin:1rem 0; }
+.warn strong { font-family:Archivo,system-ui,sans-serif; }
+</style>
+<nav class="wcnav" aria-label="Site"><div class="wcnav-in"><a class="wcnav-brand" href="./">WLAN Commander <span>C5 sniffer</span></a><div class="wcnav-links"><a href="./" aria-current="page">Flash</a><a href="#what">What it does</a><a href="#trouble">Troubleshooting</a><a href="https://wifivomfranman.github.io/wlan-commander-sensor/">NanoPi sensor</a></div></div></nav>
+
+<header class="masthead">
+  <div class="shell">
+    <div class="masthead-grid">
+      <div>
+        <p class="eyebrow">ESP32-C5 · dual-band management sniffer</p>
+        <h1>Flash a C5 from your browser</h1>
+        <p class="lede">A £10 ESP32-C5 becomes a 2.4 and 5 GHz management-frame sensor for WLAN Commander, talking to the app over Bluetooth LE. Plug it in, press the button below, and Chrome writes the image directly — no toolchain, no command line.</p>
+
+        <div class="installer">
+          <esp-web-install-button manifest="manifest.json">
+            <button slot="activate" class="btn">Connect &amp; flash</button>
+            <span slot="unsupported" class="unsupported"></span>
+          </esp-web-install-button>
+        </div>
+
+        <div class="warn unsupported">
+          <strong>This browser cannot flash.</strong> Web Serial is required — use desktop
+          <strong>Chrome</strong> or <strong>Edge</strong>. Safari, Firefox and every iOS browser
+          lack the API. There is a command-line route below.
+        </div>
+      </div>
+
+      <aside class="masthead-side">
+        <div class="statlist">
+          <div class="statrow"><span class="stat-label">Chip</span><span class="mono">ESP32-C5</span></div>
+          <div class="statrow"><span class="stat-label">Bands</span><span class="mono">2.4 + 5 GHz</span></div>
+          <div class="statrow"><span class="stat-label">Width</span><span class="mono">20 / 40 MHz</span></div>
+          <div class="statrow"><span class="stat-label">Link</span><span class="mono">BLE GATT</span></div>
+          <div class="statrow"><span class="stat-label">Image</span><span class="mono">1.33 MB</span></div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</header>
+
+<main class="shell">
+
+  <section id="what">
+    <div class="sec-head"><h2>What the board does</h2></div>
+    <div class="prose">
+      <p>It listens. In promiscuous mode across 2.4 and 5 GHz, every management and control frame it hears is wrapped in a radiotap header and streamed to the phone over a single BLE characteristic, where WLAN Commander parses it like any other capture source.</p>
+      <p>It can also <em>ask</em>. Given a list of Passpoint access points, it sends GAS/ANQP queries and captures the replies — a standard pre-association client query, the same one your phone makes before it joins a hotspot. That is what fills in realms, roaming consortiums and venue names on the Passpoint screen.</p>
+    </div>
+
+    <div class="features">
+      <div class="feat"><h3>It boots idle</h3><p>No promiscuous mode, no channel hopping, no transmission — BLE advertising only. Nothing happens until the app says so, and closing the app stops it again. An earlier build swept and transmitted from the moment it had power, unattended; this one does not.</p></div>
+      <div class="feat"><h3>It stops when you walk away</h3><p>If the phone disappears — app closed, crash, flat battery, or simply out of range — the board notices the link is gone and stops itself. A board with nobody listening captures frames it then discards, so running on is spent power and spent airtime for nothing.</p></div>
+      <div class="feat"><h3>One radio is enough</h3><p>Requests go out through the MAC rather than raw injection, so the board hears its own replies. An earlier design paired two boards because a mis-measurement suggested a single radio was deaf to its own transmission. It is not.</p></div>
+    </div>
+  </section>
+
+  <section id="flash">
+    <div class="sec-head"><h2>Flashing</h2></div>
+    <div class="prose">
+      <p>The button above needs desktop Chrome or Edge — Web Serial exists nowhere else. Connect the board by USB, press it, and pick the serial port that appears.</p>
+    </div>
+
+    <div class="steps">
+      <div class="step"><span class="step-n">1</span><div><h3>Plug in a data cable</h3><p>Charge-only USB cables are common and produce a board that powers up and never enumerates. If no port appears in the picker, suspect the cable before the board.</p></div></div>
+      <div class="step"><span class="step-n">2</span><div><h3>Press Connect &amp; flash</h3><p>Four images are written: bootloader at <span class="mono">0x2000</span>, partition table at <span class="mono">0x8000</span>, boot_app0 at <span class="mono">0xe000</span>, and the sketch at <span class="mono">0x10000</span>.</p></div></div>
+      <div class="step"><span class="step-n">3</span><div><h3>Check it came up</h3><p>The board advertises over BLE as <span class="mono">WLC C5 SNIFFER</span>, and prints a status line on serial every two seconds. A freshly flashed board reads <span class="mono">run=0 poke=0 cap=0</span> — idle, waiting, transmitting nothing.</p></div></div>
+    </div>
+
+    <div class="prose">
+      <h3>From a command line instead</h3>
+      <p>Download the four images from the repository and write them with <span class="mono">esptool</span>:</p>
+      <pre class="cm">esptool --port /dev/cu.usbmodem1101 --no-stub write-flash \
+  --flash-mode dio --flash-freq 80m --flash-size 4MB \
+  0x2000  wlc_sniffer.ino.bootloader.bin \
+  0x8000  wlc_sniffer.ino.partitions.bin \
+  0xe000  boot_app0.bin \
+  0x10000 wlc_sniffer.ino.bin</pre>
+      <p><span class="mono">--no-stub</span> is there deliberately. On the boards tested here the stub loader frequently fails to start, and the failure looks like a dead board rather than a flashing problem.</p>
+    </div>
+  </section>
+
+  <section id="trouble">
+    <div class="sec-head"><h2>When it will not flash</h2></div>
+    <div class="prose">
+      <p>Three failures account for nearly everything seen on the bench, and none of them looks like what it is.</p>
+    </div>
+
+    <div class="hard">
+      <div class="hard-row"><h3>Nothing appears in the port picker</h3><p>A charge-only cable, or a hub that carries power but not data. Try a different cable and a port directly on the machine before anything else.</p></div>
+      <div class="hard-row"><h3>It connects once, then refuses</h3><p>These boards accept roughly one flashing session per USB enumeration. If a first attempt fails partway, the next one may report no response at all. Unplug it, plug it back in, and try again — do not keep retrying against a wedged port.</p></div>
+      <div class="hard-row"><h3>Silent, or stuck in a boot loop</h3><p>Hold <strong>BOOT</strong> while plugging the board in — or hold BOOT and tap <strong>RESET</strong> — to force the ROM download mode, then flash. Release BOOT afterwards, or the board will write the image and sit in download mode instead of running it. A board that answers the flasher but never advertises over BLE is usually still being held there.</p></div>
+    </div>
+  </section>
+
+  <section id="privacy">
+    <div class="sec-head"><h2>What it transmits</h2></div>
+    <div class="prose">
+      <p>By default, nothing. Listening is passive, and ANQP queries are off until switched on.</p>
+      <p>When they are on, the board sends GAS/ANQP requests — the standard query a client makes before associating. It does not deauthenticate, does not inject forged data frames, and does not associate with anything. Asking is still a transmission, so it is opt-in and stops with the rest when the board stops.</p>
+    </div>
+  </section>
+
+</main>
+
+<script type="module" src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
+<footer>
+  <div class="shell">
+    <div class="footgrid">
+      <div>
+        <div class="eyebrow">Source</div>
+        <p><a href="https://github.com/WiFivomFranMan/wlan-commander-esp32">Repository</a><br>
+        The sketch and the four images it builds are both here.</p>
+      </div>
+      <div>
+        <div class="eyebrow">Image</div>
+        <p class="mono">wlc_sniffer<br>1,393,536 bytes<br>PartitionScheme=min_spiffs</p>
+      </div>
+      <div>
+        <div class="eyebrow">Lineage</div>
+        <p>The C5 dual-band recipe is borrowed from CodeHedge's
+        <span class="mono">ESP32DualBandWardriver</span> under MIT. The sniffer, the BLE
+        protocol and the ANQP work are this project's.</p>
+      </div>
+      <div>
+        <div class="eyebrow">Hardware</div>
+        <p>Any ESP32-C5 devkit with a USB data cable. Tested on eco2 silicon with 8 MB flash;
+        the image is built for a 4 MB layout and fits either.</p>
+      </div>
+    </div>
+  </div>
+</footer>
