@@ -24,6 +24,21 @@ walking out of range leaves nothing running.
 ANQP querying is off by default and additionally requires `run=1`: `run=0` means no
 transmission under any setting.
 
+## Which board
+
+Any ESP32-C5 devkit with a USB data connection works. Two worth naming:
+
+| Board | Flash | |
+|---|---|---|
+| [Seeed XIAO ESP32-C5](https://www.seeedstudio.com/Seeed-Studio-XIAO-ESP32C5-p-6609.html) | 8 MB + 8 MB PSRAM | developed and tested on this |
+| [M5Stack Stamp-C5](https://docs.m5stack.com/en/core/Stamp-C5) | 4 MB | runs this image, with nothing spare |
+
+**Check the flash size before buying** — C5 boards ship as either 4 MB or 8 MB and listings do
+not always say so plainly. This image is built for a 4 MB layout and runs on both: the sketch
+is 1.33 MB in a 1.92 MB app slot (~71%), with a second slot the same size for updates. A 4 MB
+board is not a mistake. It is close to full, though, so 8 MB is the better choice if you are
+buying now.
+
 ## Flashing by hand
 
 ```

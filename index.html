@@ -535,7 +535,7 @@ esp-web-install-button[install-unsupported] ~ .unsupported { display:block; }
         padding:.85rem 1rem; border-radius:0 6px 6px 0; margin:1rem 0; }
 .warn strong { font-family:Archivo,system-ui,sans-serif; }
 </style>
-<nav class="wcnav" aria-label="Site"><div class="wcnav-in"><a class="wcnav-brand" href="./">WLAN Commander <span>C5 sniffer</span></a><div class="wcnav-links"><a href="./" aria-current="page">Flash</a><a href="#what">What it does</a><a href="#trouble">Troubleshooting</a><a href="https://wifivomfranman.github.io/wlan-commander-sensor/">NanoPi sensor</a></div></div></nav>
+<nav class="wcnav" aria-label="Site"><div class="wcnav-in"><a class="wcnav-brand" href="./">WLAN Commander <span>C5 sniffer</span></a><div class="wcnav-links"><a href="./" aria-current="page">Flash</a><a href="#boards">Boards</a><a href="#what">What it does</a><a href="#trouble">Troubleshooting</a><a href="https://wifivomfranman.github.io/wlan-commander-sensor/">NanoPi sensor</a></div></div></nav>
 
 <header class="masthead">
   <div class="shell">
@@ -585,6 +585,39 @@ esp-web-install-button[install-unsupported] ~ .unsupported { display:block; }
       <div class="feat"><h3>It boots idle</h3><p>No promiscuous mode, no channel hopping, no transmission — BLE advertising only. Nothing happens until the app says so, and closing the app stops it again. An earlier build swept and transmitted from the moment it had power, unattended; this one does not.</p></div>
       <div class="feat"><h3>It stops when you walk away</h3><p>If the phone disappears — app closed, crash, flat battery, or simply out of range — the board notices the link is gone and stops itself. A board with nobody listening captures frames it then discards, so running on is spent power and spent airtime for nothing.</p></div>
       <div class="feat"><h3>One radio is enough</h3><p>Requests go out through the MAC rather than raw injection, so the board hears its own replies. An earlier design paired two boards because a mis-measurement suggested a single radio was deaf to its own transmission. It is not.</p></div>
+    </div>
+  </section>
+
+  <section id="boards">
+    <div class="sec-head"><h2>Which board to buy</h2></div>
+    <div class="prose">
+      <p>Any ESP32-C5 devkit with a USB data connection will do. Two are worth naming, and they
+      differ in the one respect that matters later.</p>
+    </div>
+
+    <div class="features">
+      <div class="feat">
+        <h3><a href="https://www.seeedstudio.com/Seeed-Studio-XIAO-ESP32C5-p-6609.html">Seeed XIAO ESP32-C5</a></h3>
+        <p class="mono">8 MB flash &middot; 8 MB PSRAM</p>
+        <p>What the firmware was developed and tested on. The extra flash is the reason to
+        prefer it — see below.</p>
+      </div>
+      <div class="feat">
+        <h3><a href="https://docs.m5stack.com/en/core/Stamp-C5">M5Stack Stamp-C5</a></h3>
+        <p class="mono">4 MB flash &middot; ESP32-C5HF4</p>
+        <p>Smaller and cheaper, and it runs this image today. It has no room to spare, which is
+        the trade you are making.
+        <a href="https://shop.m5stack.com/products/m5stampc5-module-esp32-c5">Shop page</a>.</p>
+      </div>
+    </div>
+
+    <div class="warn">
+      <strong>Check the flash size before you buy.</strong> ESP32-C5 boards ship with either
+      4 MB or 8 MB, and the listing does not always make it obvious. This image is built for a
+      4 MB layout and runs on both — the sketch is 1.33 MB in a 1.92 MB application slot, about
+      71% full, with a second slot the same size beside it for updates. So a 4 MB board is not
+      a mistake. But it is already nearly full, and an 8 MB board leaves room for the firmware
+      to grow without a partition change. If you are choosing now, choose 8 MB.
     </div>
   </section>
 
@@ -658,7 +691,8 @@ esp-web-install-button[install-unsupported] ~ .unsupported { display:block; }
       <div>
         <div class="eyebrow">Hardware</div>
         <p>Any ESP32-C5 devkit with a USB data cable. Tested on eco2 silicon with 8 MB flash;
-        the image is built for a 4 MB layout and fits either.</p>
+        the image is built for a 4 MB layout and runs on either. See
+        <a href="#boards">Which board to buy</a>.</p>
       </div>
     </div>
   </div>
