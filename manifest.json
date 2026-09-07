@@ -1,6 +1,6 @@
 {
   "name": "WLAN Commander C5 Sniffer",
-  "version": "2026.09.05",
+  "version": "2026.09.07+1876915",
   "home_assistant_domain": null,
   "funding_url": null,
   "new_install_prompt_erase": false,
@@ -8,10 +8,22 @@
     {
       "chipFamily": "ESP32-C5",
       "parts": [
-        { "path": "firmware/wlc_sniffer.ino.bootloader.bin", "offset": 8192 },
-        { "path": "firmware/wlc_sniffer.ino.partitions.bin", "offset": 32768 },
-        { "path": "firmware/boot_app0.bin",                  "offset": 57344 },
-        { "path": "firmware/wlc_sniffer.ino.bin",            "offset": 65536 }
+        {
+          "path": "firmware/wlc_sniffer.ino.bootloader.bin",
+          "offset": 8192
+        },
+        {
+          "path": "firmware/wlc_sniffer.ino.partitions.bin",
+          "offset": 32768
+        },
+        {
+          "path": "firmware/boot_app0.bin",
+          "offset": 57344
+        },
+        {
+          "path": "firmware/wlc_sniffer.ino.bin",
+          "offset": 65536
+        }
       ]
     }
   ]

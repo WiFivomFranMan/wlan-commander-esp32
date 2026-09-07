@@ -1,0 +1,10 @@
+{
+  "//": "Read by the app to decide whether a board needs updating, and by the board to fetch it.  is the value a board prints as fw= in its status line: equal means do nothing.",
+  "sha": "1876915",
+  "url": "https://wifivomfranman.github.io/wlan-commander-esp32/firmware/wlc_sniffer.ino.bin",
+  "size": 1393568,
+  "sha256": "cfdf289eceee7cc7caacce12e47787e78e3d10c6d4f9560bde81410c5df7cb55",
+  "built": "2026-09-07",
+  "chip": "ESP32-C5",
+  "min_free_slot": 1966080
+}

@@ -34,6 +34,20 @@
 #include "esp_wifi.h"
 #include <NimBLEDevice.h>
 
+// Firmware identity. Until now the image carried none at all, so "which build is
+// on this board" could only be inferred from which status fields happened to
+// exist — and that only works while the field set keeps changing. Two images
+// have been in the field before with no way to tell them apart in the hand.
+//
+// Injected at build time:
+//   --build-property "compiler.cpp.extra_flags=-DWLC_FW_GIT=\"$(git rev-parse --short=7 HEAD)\""
+//
+// The fallback is deliberately not a plausible-looking version: a hand build
+// reads `nogit` rather than quietly claiming a commit it was not built from.
+#ifndef WLC_FW_GIT
+#define WLC_FW_GIT "nogit"
+#endif
+
 // Uncomment to lock to one channel (bench test of poke + co-channel capture):
 // #define LOCK_CH 11
 
@@ -768,20 +782,24 @@ void loop() {
   if (now - lastStat >= 2000) {
     lastStat = now;
     // 448, not 256. Measured worst case — every uint32 counter at 4294967295 — was 363 bytes with
-    // NUL before `linkstop=` was added, and that field adds at most 19 more, so 382. The same
-    // measurement puts the *pre-0x04* line at 307, so 256 was already 51 bytes short of its own
-    // worst case before a field was added. snprintf truncates from the tail in silence,
-    // and the tail is where `ch=` and `sub=` live. A realistic line is ~225.
+    // NUL before `linkstop=` was added, and that field adds at most 19 more, so 382. `fw=` with a
+    // 7-character SHA adds 11, so 393. The same measurement puts the *pre-0x04* line at 307, so
+    // 256 was already 51 bytes short of its own worst case before a field was added. snprintf
+    // truncates from the tail in silence, and the tail is where `ch=` and `sub=` live. A
+    // realistic line is ~236.
     //
-    // The control state leads, because it is what a human reads first and what no truncation can
-    // reach. `run=` is the driver's actual state; `filt=`/`width=` are the *commanded* values, so
-    // that a write made while stopped reads back immediately instead of after the next start.
+    // `fw=` leads, ahead even of the control state, for the same reason the control state leads
+    // everything else: the front of the line is the part no truncation can reach, and the whole
+    // point of the field is to be readable from a board that may be misbehaving. `run=` is the
+    // driver's actual state; `filt=`/`width=` are the *commanded* values, so that a write made
+    // while stopped reads back immediately instead of after the next start.
     char msg[448];
     snprintf(msg, sizeof(msg),
-             "run=%d poke=%d filt=%lx width=%u "
+             "fw=%s run=%d poke=%d filt=%lx width=%u "
              "cap=%lu fwd=%lu evt=%lu gasResp=%lu gasMine=%lu pp=%d poked=%lu ddrop=%lu rdrop=%lu "
              "odrop=%lu bdrop=%lu nfail=%lu frag=%lu poolmax=%lu chfail=%lu heap=%lu mtu=%u "
              "2.4=%lu 5G=%lu ch=%u sub=%d linkstop=%lu",
+             WLC_FW_GIT,
              isRun ? 1 : 0, pokeEnable ? 1 : 0, (unsigned long)wantFilt, (unsigned)wantWidth,
              (unsigned long)captured, (unsigned long)fwd, (unsigned long)events, (unsigned long)gasResp,
              (unsigned long)gasMine,
