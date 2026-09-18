@@ -1,10 +1,15 @@
 # WLAN Commander — ESP32-C5 sniffer
 
 Firmware that turns an ESP32-C5 devkit into a 2.4 / 5 GHz management-frame sensor for
-[WLAN Commander](https://github.com/WiFivomFranMan), talking to the app over Bluetooth LE.
+[WLAN Commander](https://wlancommander.com/), talking to the app over Bluetooth LE.
 
-**Flash it from a browser: <https://wifivomfranman.github.io/wlan-commander-esp32/>**
+**Flash it from a browser: <https://wlancommander.com/sensors/esp32-c5/flash/>**
 (desktop Chrome or Edge — Web Serial exists nowhere else.)
+
+Current guide: https://wlancommander.com/sensors/esp32-c5/
+
+The old GitHub Pages guide redirects to the current site. Firmware, manifest and OTA URLs
+remain available for existing devices and integrations.
 
 ## What it does
 
