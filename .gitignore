@@ -1,0 +1,5 @@
+build/
+__pycache__/
+*.pyc
+firmware/wlc_sniffer_airhorn/sdkconfig
+firmware/wlc_sniffer_airhorn/sdkconfig.old

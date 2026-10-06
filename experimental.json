@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "chip": "esp32c5",
+  "firmware": "airhorn-dev",
+  "experimental": true,
+  "app_sha256": "1cff32204c55e533e4aa3fe2b558178c88b4b3e31d696bcc3da749141381192c",
+  "static_margin_bytes": 928,
+  "physical_flash_bytes_qualified": 8388608,
+  "image_flash_size": "4MB",
+  "regions": [
+    {
+      "offset": 8192,
+      "file": "bootloader.bin",
+      "bytes": 22080,
+      "sha256": "607618e073f9b0614596929ae88835563d09271997beb3258de246ced84671c7"
+    },
+    {
+      "offset": 32768,
+      "file": "partition-table.bin",
+      "bytes": 3072,
+      "sha256": "1ae446228d79cf83a4b83de41c33d1e01dc21a3557149d7da90fbcbfc303311d"
+    },
+    {
+      "offset": 57344,
+      "file": "ota_data_initial.bin",
+      "bytes": 8192,
+      "sha256": "7d2c7ac4888bfd75cd5f56e8d61f69595121183afc81556c876732fd3782c62f"
+    },
+    {
+      "offset": 65536,
+      "file": "wlc_sniffer_sdr.bin",
+      "bytes": 1257584,
+      "sha256": "1cff32204c55e533e4aa3fe2b558178c88b4b3e31d696bcc3da749141381192c"
+    }
+  ],
+  "dependency_commits": {
+    "arduino": "189089bb76e74978dc95abebefdad42b0d421ba9",
+    "esp-dsp": "a53a0756833c045311ea1d79a2badf495cdfde4c",
+    "esp-sdr": "550fadea4d00a9e26ce921c5832167becb3dc20c",
+    "idf": "b774170ff46c393eeb5e495ea37936038d3f4f4f",
+    "nimble": "5ae2c43f62c5a588a25c1de68f7d17b6f3b75adb"
+  },
+  "source_license": "GPL-3.0-or-later",
+  "automatic_flashing": false,
+  "hardware_qualification": "Experimental exact-image two-board private Pi API and BLE bench passed; representative CW carrier presence observed on channels 1 and 36. Independent packet RF confirmation, three-to-six boards, calibration and full image/UI qualification remain separate. See qa/c5/qualification.json.",
+  "downloads": {
+    "image": {
+      "file": "c5-all-in-one-image.zip",
+      "bytes": 887744,
+      "sha256": "ad7a395db36ba2e0b46745f87afaf5457dac164a2cbab4cd67fff4aae70e5a3d",
+      "url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-experimental-2026.10.03-1cff3220/c5-all-in-one-image.zip",
+      "checksum_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-experimental-2026.10.03-1cff3220/c5-all-in-one-image.zip.sha256",
+      "sig_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-experimental-2026.10.03-1cff3220/c5-all-in-one-image.zip.sig"
+    },
+    "source": {
+      "file": "c5-all-in-one-source.tar.xz",
+      "bytes": 81491592,
+      "sha256": "bafc8d4e3da40c56ba926c1389318d66af4d5c4ae32a993fdf6316ceb9bd3995",
+      "url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-experimental-2026.10.03-1cff3220/c5-all-in-one-source.tar.xz",
+      "checksum_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-experimental-2026.10.03-1cff3220/c5-all-in-one-source.tar.xz.sha256",
+      "sig_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-experimental-2026.10.03-1cff3220/c5-all-in-one-source.tar.xz.sig"
+    }
+  },
+  "generator_lease_protocol": 2,
+  "qualified_physical_boards": 2,
+  "version": "2026.10.03+1cff3220",
+  "release_tag": "c5-experimental-2026.10.03-1cff3220",
+  "channel": "experimental",
+  "built": "2026-10-03",
+  "published": "2026-10-06",
+  "automatic_update": false,
+  "notes_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/tag/c5-experimental-2026.10.03-1cff3220",
+  "source_snapshot_revision": "d7bcb04a54ef9be82f7492bc105043ba42451230",
+  "application": {
+    "file": "wlc_sniffer_sdr.bin",
+    "url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-experimental-2026.10.03-1cff3220/wlc_sniffer_sdr.bin",
+    "bytes": 1257584,
+    "sha256": "1cff32204c55e533e4aa3fe2b558178c88b4b3e31d696bcc3da749141381192c",
+    "sig_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-experimental-2026.10.03-1cff3220/wlc_sniffer_sdr.bin.sig"
+  },
+  "release_signature": {
+    "algorithm": "RSA-SHA256",
+    "public_key_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-experimental-2026.10.03-1cff3220/01-release-2026.pub",
+    "firmware_enforces_signature": false
+  },
+  "limitations": [
+    "Only ESP32-C5; physical checks cover two 8 MB boards, not 4 MB boards.",
+    "2.4 and 5 GHz only; FFT levels are relative, uncalibrated and gapped.",
+    "RF power and duty cycle are uncalibrated; no DFS or 6 GHz transmit.",
+    "FTM command handling exists; actual FTM ranging was not qualified for this exact bundle.",
+    "Native grouped spectrum was checked in an iPhone simulator with real boards; physical phone UI and Android C5 Spectrum remain unqualified.",
+    "Static SRAM margin is 928 bytes; this is not a stable replacement."
+  ]
+}

@@ -1,0 +1,33 @@
+Experimental WLAN Commander / ESP-SDR / RF-generator combined firmware
+
+This combined image and the integration files in this directory are licensed
+under GPL-3.0-or-later. The stable wlc_sniffer sketch remains a separate MIT
+source file; its generated inclusion in this combined program is distributed
+under the GPL terms. The app and shared core do not link ESP-SDR code.
+
+ESP-SDR: https://github.com/ESPARGOS/esp-sdr
+Copyright notices and license headers are preserved in dependency sources.
+Revision: 550fadea4d00a9e26ce921c5832167becb3dc20c
+ESP-DSP: https://github.com/espressif/esp-dsp (Apache-2.0)
+Arduino-ESP32: https://github.com/espressif/arduino-esp32 (LGPL-2.1)
+NimBLE-Arduino: https://github.com/h2zero/NimBLE-Arduino (Apache-2.0)
+ESP-IDF: https://github.com/espressif/esp-idf (see its component licenses)
+
+dependency-lock.json records exact commits and hashes of integration inputs.
+prepare_sources.py produces modified sources in the build directory; it removes
+upstream's entry point, adds a reset/dispatch API, limits FFTs to 512 bins, reports
+USB-only transport, binds the sniffer packet pool to shared SRAM, and gates BLE writes.
+It also preserves ownership of the sniffer's static BLE server callback and checks
+SDK NimBLE host initialization before launching the host task. sdk_host.h selects
+the SDK host headers for the Arduino C++ wrappers so only the SDK initializes the
+controller. The pinned dependency source trees are not edited.
+
+When distributing a binary, provide its corresponding source: this directory,
+the exact wlc_sniffer.ino identified in source-manifest.json, pinned dependency
+sources and their license files, sdkconfig, and build scripts. Preserve the
+generated source manifest and generated sources with the binary. This notice
+does not turn a binary-only delivery into a source-compliant distribution.
+
+This variant also renames seven RF-test BSS scratch sections in a PRIVATE SDK
+copy. Code, symbols, relocations and sizes are preserved. Include
+prepare_rf_archive.py and its archive transformation manifest as build inputs.
