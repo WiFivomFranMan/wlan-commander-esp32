@@ -11,6 +11,22 @@ Current guide: https://wlancommander.com/sensors/esp32-c5/
 The old GitHub Pages guide redirects to the current site. Firmware, manifest and OTA URLs
 remain available for existing devices and integrations.
 
+## Current firmware channels
+
+| Channel | Firmware | Use |
+|---|---|---|
+| Stable | `2026.09.07+1876915` | Existing BLE sniffer; default browser flasher and OTA |
+| Experimental | `2026.10.03+1cff3220` | Combined BLE sniffer, USB spectrum and finite RF-test modes |
+
+**New experimental source and downloads:** [installation, exact-image evidence and limits](docs/experimental-c5.md).
+[Versioned prerelease](https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/tag/c5-experimental-2026.10.03-1cff3220) ·
+[Build source](firmware/wlc_sniffer_airhorn/) · [Publication runbook](docs/publishing.md).
+
+The combined build is GPL-3.0-or-later and was tested on two 8 MB C5 boards.
+It remains experimental. The stable firmware files, OTA manifest and browser
+flasher are retained; existing devices are not automatically switched.
+The stable source and instructions below describe the September release.
+
 ## What it does
 
 Promiscuous capture on 2.4 and 5 GHz at 20 or 40 MHz. Every management and control frame is
