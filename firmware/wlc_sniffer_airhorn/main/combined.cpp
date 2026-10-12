@@ -14,6 +14,8 @@
 #include "soc/soc.h"
 #include "command_policy.h"
 #include "generator_policy.h"
+#include "rf_approval.hpp"
+#include "nvs_flash.h"
 #include "esp_phy_cert_test.h"
 extern "C" {
 #include "burst_serial.h"
@@ -44,6 +46,9 @@ struct QuietSerial {
 static QuietSerial quiet_serial;
 #include "sniffer.inc"
 
+static bool rf_approved;
+static uint32_t rf_limit_ms = wlc::rf::kMaxSessionMs;
+static wlc::rf::Session rf_session;
 static bool spectrum_mode;
 static bool generator_mode, generator_active, generator_tone;
 static uint32_t generator_channel_value, generator_backoff;
@@ -53,6 +58,7 @@ static std::atomic<bool> packet_worker_running{false};
 // Consume this request before RF initialization. A later failure boots idle.
 RTC_NOINIT_ATTR static uint32_t generator_boot_magic;
 RTC_NOINIT_ATTR static uint32_t generator_boot_inverse;
+RTC_NOINIT_ATTR static uint32_t generator_boot_budget;
 static constexpr uint32_t GENERATOR_BOOT_MAGIC = 0x574c4347;
 [[noreturn]] static void generator_reset() {
     // Same full RTC-watchdog reset used by esptool's ESP32C5ROM. The normal
@@ -165,6 +171,7 @@ static bool enter_spectrum() {
 }
 
 static bool enter_generator() {
+    if (!rf_approved || !rf_session.active(millis())) return false;
     radio_gate.store(true);
     portENTER_CRITICAL(&ftmMux);
     bool busy = isRun || wantRun || ftmActive || ftmHasQueued;
@@ -172,6 +179,7 @@ static bool enter_generator() {
     if (busy) { radio_gate.store(false); return false; }
     // The private PHY does not start packet TX reliably after normal Wi-Fi
     // teardown on this C5. A fresh boot works with the same scratch layout.
+    generator_boot_budget = rf_session.remaining(millis());
     generator_boot_magic = GENERATOR_BOOT_MAGIC;
     generator_boot_inverse = ~GENERATOR_BOOT_MAGIC;
     reply("OK REBOOT\n");
@@ -185,9 +193,12 @@ void setup() {
     burst_serial_init();
     boot_trace("BOOT setup\n");
     WiFi.useStaticBuffers(true); // honor the bounded sdkconfig buffer counts
-    const bool boot_generator = generator_boot_magic == GENERATOR_BOOT_MAGIC &&
+    if (nvs_flash_init() == ESP_OK) rf_approved = wlc::rf::approved(&rf_limit_ms);
+    const uint32_t host_budget = generator_boot_budget;
+    const bool boot_generator = rf_approved && host_budget > 0 && host_budget <= rf_limit_ms && generator_boot_magic == GENERATOR_BOOT_MAGIC &&
                                 generator_boot_inverse == ~GENERATOR_BOOT_MAGIC;
-    generator_boot_magic = generator_boot_inverse = 0;
+    generator_boot_magic = generator_boot_inverse = generator_boot_budget = 0;
+    if (boot_generator) rf_session.unlock(rf_approved, true, millis(), host_budget);
     esp_timer_handle_t guard_timer;
     esp_timer_create_args_t guard_args = {};
     guard_args.callback = guard_check;
@@ -213,13 +224,32 @@ void setup() {
 }
 
 void loop() {
-    char line[128];
+    char line[224];
     int status = burst_serial_poll_line(line, sizeof(line));
     if (status < 0) reply("ERR command_length\n");
     if (status > 0) {
         if (!generator_mode || generator_heartbeat(line))
             last_command_us = esp_timer_get_time();
-        if (!strcmp(line, "MODE?")) {
+        if (!strcmp(line, "RFAPPROVAL?")) {
+            char text[200];
+            snprintf(text, sizeof(text), "RFAPPROVAL {\"approved\":%s,\"unlocked\":%s,\"remaining_ms\":%lu,\"max_session_ms\":%lu}\n",
+                rf_approved ? "true" : "false", rf_session.active(millis()) ? "true" : "false",
+                (unsigned long)rf_session.remaining(millis()), (unsigned long)rf_limit_ms);
+            reply(text);
+        } else if (!strncmp(line, "RFAPPROVE ", 10)) {
+            if (generator_mode || generator_active) reply("ERR busy\n");
+            else if (!wlc::rf::install(line + 10)) reply("ERR approval_invalid\n");
+            else { rf_approved = wlc::rf::approved(&rf_limit_ms); rf_session.lock(); reply("OK\n"); }
+        } else if (!strcmp(line, "RFUNLOCK SHIELDED")) {
+            reply(!spectrum_mode && rf_session.unlock(rf_approved, true, millis(), rf_limit_ms) ? "OK\n" : "ERR approval_or_session\n");
+        } else if (!strcmp(line, "RFLOCK") || !strcmp(line, "RFREVOKE")) {
+            generator_stop();
+            rf_session.lock();
+            if (!strcmp(line, "RFREVOKE")) {
+                bool removed = wlc::rf::forget(); rf_approved = wlc::rf::approved(&rf_limit_ms);
+                reply(removed ? "OK\n" : "ERR approval_storage\n");
+            } else reply("OK\n");
+        } else if (!strcmp(line, "MODE?")) {
             reply(generator_mode ? "MODE GENERATOR\n" : spectrum_mode ? "MODE SPECTRUM\n" : "MODE SNIFFER\n");
         } else if (!strcmp(line, "TXINFO?")) {
             char text[384];
@@ -239,6 +269,7 @@ void loop() {
             if (!generator_mode) reply("ERR generator_mode_required\n");
             else if (!generator_request(line, request)) reply("ERR generator_args\n");
             else if (generator_active) reply("ERR busy\n");
+            else if (!rf_approved || !rf_session.allows(millis(), request.duration_ms)) reply("ERR rf_locked\n");
             else {
                 last_command_us = esp_timer_get_time();
                 generator_tone = request.tone;
@@ -262,7 +293,9 @@ void loop() {
                 reply(started ? "OK\n" : "ERR generator_allocation\n");
             }
         } else if (!strcmp(line, "MODE GENERATOR")) {
-            if (spectrum_mode) reply("ERR busy\n");
+            if (!rf_approved) reply("ERR approval_required\n");
+            else if (!rf_session.active(millis())) reply("ERR rf_locked\n");
+            else if (spectrum_mode) reply("ERR busy\n");
             else if (generator_mode || enter_generator()) reply("OK\n");
             else if (radio_gate.load()) { reply("ERR mode_transition\n"); esp_restart(); }
             else reply("ERR busy\n");
@@ -283,9 +316,10 @@ void loop() {
             if (!spectrum_mode || restore_sniffer()) reply("OK\n");
             else { reply("ERR mode_restore\n"); esp_restart(); }
         } else if (!strcmp(line, "WLCINFO?")) {
-            char text[384];
+            char text[512];
             snprintf(text, sizeof(text),
-                "WLCINFO {\"firmware\":\"airhorn-dev\",\"generator_lease\":2,\"mode\":\"%s\",\"run\":%s,\"ftm\":%s,\"heap\":%u,\"largest_internal\":%u,\"ble_initialized\":%s,\"shared_packet_pool\":true,\"fft_max\":512,\"bands_mhz\":[[2400,2483],[5150,5895]],\"board\":\"%02x:%02x:%02x:%02x:%02x:%02x\"}\n",
+                "WLCINFO {\"firmware\":\"airhorn-dev\",\"generator_lease\":2,\"rf_approval\":1,\"passpoint_scope_protocol\":1,\"passpoint_include_interworking\":%s,\"mode\":\"%s\",\"run\":%s,\"ftm\":%s,\"heap\":%u,\"largest_internal\":%u,\"ble_initialized\":%s,\"shared_packet_pool\":true,\"fft_max\":512,\"bands_mhz\":[[2400,2483],[5150,5895]],\"board\":\"%02x:%02x:%02x:%02x:%02x:%02x\"}\n",
+                pokeInterworking ? "true" : "false",
                 generator_mode ? "generator" : spectrum_mode ? "spectrum" : "sniffer", isRun ? "true" : "false",
                 ftmActive ? "true" : "false", (unsigned)esp_get_free_heap_size(),
                 (unsigned)heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
@@ -308,6 +342,10 @@ void loop() {
             wlc_sdr_dispatch(line);
             last_command_us = esp_timer_get_time();
         }
+    }
+    if (generator_mode && !rf_session.active(millis())) {
+        if (generator_active) generator_stop();
+        rf_session.lock();
     }
     if (status > 0 && generator_mode && generator_active) {
         uint32_t remaining = generator_guard_remaining(esp_timer_get_time(), last_command_us, generator_deadline);

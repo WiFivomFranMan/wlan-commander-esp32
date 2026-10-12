@@ -46,7 +46,8 @@ packet signal spans about 16.3 MHz; calibrated power and duty-cycle equivalence
 remain unverified. Normal explicit stop and host-loss cessation were observed;
 the software fallback was not tested with an injected PHY stall. Host tools
 implement single channel, 5/30-second traversal and finite pulses; see the
-[public evidence summary](../../docs/experimental-c5.md).
+[bench tools](../../tools/c5-airhorn/README.md) and
+[measured results](../../Architecture-Documentation/esp-airhorn-feasibility.md).
 
 ## Reproduce the build
 
@@ -77,10 +78,10 @@ section ends, adctrig, SDK configuration and image size. The tested image has
 combined-build-report.json, generated source manifest and sdkconfig. The filename
 remains wlc_sniffer_sdr.bin for build compatibility. Scripts do not flash hardware.
 
-The original host-tool tests and private bench evidence belong to the unified
-sensor/app workspace. This public source snapshot supplies the firmware build
-checker and matching generated-input hashes. See [the public exact-image summary](../../docs/experimental-c5.md)
-for the checks that were actually executed.
+```bash
+python3 -m unittest discover -s scripts/tests -p 'test_c5_airhorn.py' -v
+python3 -m unittest discover -s scripts/tests -p 'test_c5_sdr*.py' -v
+```
 
 Before flashing, identify the board and preserve two matching independent complete
 flash backups outside /tmp. Verify full restoration after testing. Bench evidence

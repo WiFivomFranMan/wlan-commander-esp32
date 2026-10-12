@@ -11,7 +11,7 @@
 // the C5 behave like every other capture device in the project, and replaces a v1 that swept and
 // transmitted GAS from the instant it had power, unattended.
 //
-// ANQP: while running, the board auto-discovers Passpoint APs (802.11u / HS2.0 in beacons) and
+// ANQP: while running, the board auto-discovers HS2.0 APs (Interworking-only is opt-in) and
 // sends GAS/ANQP requests to them (a benign, standard pre-association client query — NOT an
 // attack; no deauth, no injection of forged data frames). The response is captured by this same
 // board and streamed like any other mgmt frame; the phone parses the ANQP. Poking is off by
@@ -124,6 +124,7 @@ struct PPAp { uint8_t bssid[6]; uint8_t ch; uint8_t tok; uint8_t qset;
               uint32_t lastPoke; uint32_t lastRespFwd; };
 static PPAp ppap[PP_MAX];
 static volatile int ppN = 0;
+static volatile bool pokeInterworking = false;
 static volatile uint32_t poked = 0, gasResp = 0;  // pokes sent; GAS responses captured (any DA)
 
 // Dialog tokens must vary: core keys a transaction on (bssid, peer, dialog_token) and drops a
@@ -131,6 +132,11 @@ static volatile uint32_t poked = 0, gasResp = 0;  // pokes sent; GAS responses c
 static uint8_t nextTok = 1;
 static inline uint8_t alloc_tok(){ uint8_t t = nextTok++; if (nextTok == 0) nextTok = 1; return t; }
 
+// Kept independent of the radio so the exact advertisement predicate is host-testable.
+static bool passpoint_candidate_ie(uint8_t eid, const uint8_t* val, uint8_t len, bool includeInterworking) {
+  if (eid == 107) return includeInterworking && len >= 1;
+  return eid == 221 && len >= 4 && val[0] == 0x50 && val[1] == 0x6f && val[2] == 0x9a && val[3] == 0x10;
+}
 static bool pp_seen(const uint8_t* b){ for(int i=0;i<ppN;i++) if(!memcmp(ppap[i].bssid,b,6)) return true; return false; }
 static void pp_add(const uint8_t* b, uint8_t ch, uint32_t now){
   if (ppN >= PP_MAX) return;
@@ -350,7 +356,7 @@ class SrvCB : public NimBLEServerCallbacks {
 };
 // Phone -> board: 0x01=SET_CHANNELS(+chan bytes); 0x02=ADD_POKE(+ [6 bssid,1 ch] records);
 // 0x03=SET_POKE_ENABLE(+1 byte 0/1); 0x04=SET_RUN(+1 byte 0/1); 0x05=SET_FILTER(+u32 LE mask);
-// 0x06=SET_WIDTH(+1 byte 0/1/2).
+// 0x06=SET_WIDTH(+1 byte 0/1/2); 0x09=SET_POKE_SCOPE(+1 byte 0 HS2.0 only / 1 include 11u).
 //
 // Nothing here calls the wifi driver. 0x01 has always staged into `pendCh` for `loop()` to adopt,
 // and the three new opcodes follow it rather than acting: they set a `want*` and `loop()`
@@ -392,6 +398,11 @@ class CmdCB : public NimBLECharacteristicCallbacks {
       if (!busy) { ftmQueued = request; ftmHasQueued = true; }
       portEXIT_CRITICAL(&ftmMux);
       if (busy) ftm_make_result(request.id, request.mac, request.channel, 128, 0, 0, 0, 0);
+    } else if (n == 2 && d[0] == 0x09 && d[1] <= 1) { // SET_POKE_SCOPE
+      if (pokeInterworking != (d[1] != 0)) {
+        pokeInterworking = (d[1] != 0);
+        ppN = 0; // discard targets collected under the previous scope
+      }
     } else if (n == 3 && d[0] == 0x08) {               // FTM_CANCEL
       portENTER_CRITICAL(&ftmMux);
       ftmCancelId = (uint16_t)d[1] | ((uint16_t)d[2] << 8);
@@ -538,8 +549,7 @@ static void IRAM_ATTR promisc_cb(void* buf, wifi_promiscuous_pkt_type_t type) {
         uint8_t eid = f[i], ln = f[i+1];
         if (i + 2 + ln > flen) break;
         const uint8_t* val = f + i + 2;
-        if (eid == 107) pp = true;                                    // 802.11u Interworking
-        if (eid == 221 && ln >= 4 && val[0]==0x50 && val[1]==0x6f && val[2]==0x9a && val[3]==0x10) pp = true; // HS2.0
+        if (passpoint_candidate_ie(eid, val, ln, pokeInterworking)) pp = true;
         if (eid == 3  && ln >= 1) dsch = val[0];                      // DS Parameter Set
         if (eid == 61 && ln >= 1 && dsch == 0) dsch = val[0];         // HT Operation primary ch
         i += 2 + ln;

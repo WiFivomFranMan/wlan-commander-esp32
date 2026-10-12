@@ -1,0 +1,2 @@
+# The 1.69 board has 16 MB; the shared partition table ends at 0xE20000.
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y

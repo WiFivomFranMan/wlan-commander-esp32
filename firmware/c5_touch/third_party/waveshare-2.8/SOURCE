@@ -1,0 +1,10 @@
+Vendored from https://github.com/waveshareteam/ESP32-C5-Touch-LCD-2.8 @ 4d7a40b75cfe609f87b619296db2d96536fe800e
+path example/ESP-IDF-V554/08_bookesia/components (docs, test_apps and *.md pruned)
+Licenses: repo Apache-2.0; brookesia_core Apache-2.0 (license.txt); shtc3 per its license.txt.
+Unmodified unless noted in PATCHES below.
+
+The board BSP (esp32_c5_touch_lcd_2_8) lives at bsp/wlc_bsp: the directory name is the component
+name, so both boards' BSPs answer to wlc_bsp and the build picks one.
+
+PATCHES
+(none)

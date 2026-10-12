@@ -1,0 +1,36 @@
+dependencies:
+  esp_codec_dev:
+    public: true
+    version: ~1.5.4
+  esp_lcd_touch_cst816s:
+    version: "*"
+    public: true
+  espressif/i2c_bus:
+    public: true
+    version: 1.4.*  
+  espressif/bq27220:
+    public: true
+    version: '*'
+  # public: include/bsp/display.h includes esp_lv_adapter.h
+  espressif/esp_lvgl_adapter:
+    version: "0.4.*"
+    public: true
+  lvgl/lvgl: '>=8,<10' 
+  esp_io_expander_tca9554: 
+    version: "^2"
+    public: true
+  waveshare/pcf85063a:
+    public: true
+    version: '*'
+  waveshare/qmi8658:
+    public: true
+    version: '*'
+  idf: '>=5.3'
+description: Board Support Package (BSP) for ESP32-C5-LCD-1.47
+repository: git://github.com/espressif/esp-bsp.git
+tags:
+- bsp
+targets:
+- esp32c5
+url: https://github.com/waveshareteam/Waveshare-ESP32-components
+version: 1.0.0

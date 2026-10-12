@@ -13,19 +13,22 @@ remain available for existing devices and integrations.
 
 ## Current firmware channels
 
-| Channel | Firmware | Use |
+| Channel / model | Firmware | Use |
 |---|---|---|
-| Stable | `2026.09.07+1876915` | Existing BLE sniffer; default browser flasher and OTA |
-| Experimental | `2026.10.03+1cff3220` | Combined BLE sniffer, USB spectrum and finite RF-test modes |
+| Experimental screenless C5 · 8 MB | `2026.10.12+9e760afc` | Latest browser default: BLE capture, USB spectrum, approved RF tools |
+| Touch-LCD-2.8 · 32 MB | `2026.10.12+f162839b` launcher | HS2.0-only Passpoint default; optional Interworking-only results |
+| Touch-LCD-1.69 · 16 MB | `2026.10.12+89df13ec` launcher | Same features; build verified, hardware QA pending |
+| Legacy stable screenless C5 · 4/8 MB | `2026.09.07+1876915` | Explicit browser option; existing stable OTA remains unchanged |
 
-**New experimental source and downloads:** [installation, exact-image evidence and limits](docs/experimental-c5.md).
-[Versioned prerelease](https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/tag/c5-experimental-2026.10.03-1cff3220) ·
-[Build source](firmware/wlc_sniffer_airhorn/) · [Publication runbook](docs/publishing.md).
+[October 12 prerelease, image ZIPs, signatures and complete source](https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/tag/c5-experimental-2026.10.12-9e760afc).
+[Current installation and qualification](docs/experimental-c5.md) ·
+[Touchscreen source](firmware/c5_touch/) · [Publication runbook](docs/publishing.md).
 
-The combined build is GPL-3.0-or-later and was tested on two 8 MB C5 boards.
-It remains experimental. The stable firmware files, OTA manifest and browser
-flasher are retained; existing devices are not automatically switched.
-The stable source and instructions below describe the September release.
+The all-in-one remains experimental and GPL-3.0-or-later. Sixteen screenless boards were flashed with matching region digests; the 2.8-inch launcher was checked through device screenshot/tap console hooks. The 1.69-inch has no physical QA for this release. The web installer supports ESP32-C5 only, checks flash capacity and hashes, and uses model-specific layouts. Download both corresponding-source archives to rebuild touchscreen applications with the exact shared SDK dependencies. No GitHub Actions are used.
+
+Touchscreen Passpoint matches the WFA HS2.0 vendor IE by default. Enable **Include Interworking-only** for 802.11u Interworking advertisements. An advertised IE is not proof of successful service authentication. AirHORN requires a signed device approval and per-session shielding acknowledgement.
+
+Stable files and OTA retain their September version. The stable instructions below describe that release.
 
 ## What it does
 

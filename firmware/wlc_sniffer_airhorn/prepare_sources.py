@@ -64,6 +64,8 @@ def generate(deps, output):
         "    if (radio_gate.load()) return;\n    NimBLEAttValue v = c->getValue();")
     sniffer = replace_once(sniffer, "static void sniffer_setup() {", ble_setup + "\nstatic void sniffer_setup() {")
     (output / "sniffer.inc").write_text(sniffer)
+    burst = (deps / "esp-sdr/main/common/burst_serial.c").read_text()
+    (output / "burst_serial.c").write_text(replace_once(burst, "#define COMMAND_SIZE 128", "#define COMMAND_SIZE 224"))
     source = deps / "esp-sdr/main/families/c5_c6_c61/receiver.c"
     receiver = source.read_text()
     start = receiver.index("void app_main(void) {")
@@ -92,7 +94,7 @@ void wlc_sdr_dispatch(char *line) { handle_command(line); }
         "dependency_commits": lock["commits"],
         "dependency_lock_sha256": hashlib.sha256((HERE / "dependency-lock.json").read_bytes()).hexdigest(),
         "variant_input_sha256": {name: hashlib.sha256((HERE / name).read_bytes()).hexdigest()
-            for name in ("CMakeLists.txt", "main/CMakeLists.txt", "main/combined.cpp",
+            for name in ("CMakeLists.txt", "main/CMakeLists.txt", "main/combined.cpp", "main/rf_approval.cpp", "main/rf_approval.hpp", "main/rf_public_key.h",
                 "main/command_policy.h", "main/generator_policy.h", "main/rf_buffers.ld", "prepare_rf_archive.py", "components/nimble_cpp/CMakeLists.txt",
                 "components/nimble_cpp/sdk_host.h",
                 "prepare_sources.py", "sdkconfig.defaults", "partitions.csv")},

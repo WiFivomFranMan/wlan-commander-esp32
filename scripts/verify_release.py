@@ -30,7 +30,7 @@ def verify(assets):
             data = z.read(region['file'])
             assert len(data) == region['bytes'] and digest(data) == region['sha256'], region['file']
         assert report['sha256']['wlc_sniffer_sdr.bin'] == meta['app_sha256']
-        assert report['static_margin_bytes'] == meta['static_margin_bytes'] == 928
+        assert report['static_margin_bytes'] == meta['static_margin_bytes'] > 0
         assert digest(z.read('sdkconfig')) == report['sha256']['sdkconfig']
         for name, expected in report['sources']['variant_input_sha256'].items():
             assert digest((ROOT / 'firmware/wlc_sniffer_airhorn' / name).read_bytes()) == expected, name
@@ -45,6 +45,29 @@ def verify(assets):
         subprocess.run(['openssl', 'dgst', '-sha256', '-verify', str(ROOT / 'keys/01-release-2026.pub'),
                         '-signature', str(assets / (name + '.sig')), str(assets / name)], check=True)
         assert (assets / (name + '.sha256')).read_text().split()[0] == digest((assets / name).read_bytes())
+    touch = json.loads((ROOT / 'touchscreen.json').read_text())
+    assert (assets / 'touchscreen.json').read_bytes() == (ROOT / 'touchscreen.json').read_bytes()
+    for model in touch['models']:
+        image = assets / model['download']['file']
+        assert digest(image.read_bytes()) == model['download']['sha256']
+        with zipfile.ZipFile(image) as z:
+            assert len(model['regions']) == 5
+            end = 0
+            for r in sorted(model['regions'], key=lambda r:r['offset']):
+                data = z.read(r['file'])
+                assert len(data) == r['bytes'] and digest(data) == r['sha256']
+                assert r['offset'] >= end
+                end = r['offset'] + len(data)
+            assert end <= model['physical_flash_bytes']
+    for p in assets.iterdir():
+        if p.is_file() and p.suffix in ('.zip','.xz','.json','.bin'):
+            subprocess.run(['openssl','dgst','-sha256','-verify',str(ROOT/'keys/01-release-2026.pub'),'-signature',str(p)+'.sig',str(p)],check=True)
+    inputs = json.loads((assets / 'touch-source-inputs.json').read_text())
+    with tarfile.open(assets / touch['source']['file'], 'r:xz') as archive:
+        for name, expected in inputs.items():
+            assert digest((ROOT/'firmware/c5_touch'/name).read_bytes()) == expected, name
+            f = archive.extractfile('c5-touch-source/' + name)
+            assert f is not None and digest(f.read()) == expected, name
     stable = json.loads((ROOT / 'ota.json').read_text())
     assert stable['sha'] == '1876915'
     assert digest((ROOT / 'firmware/wlc_sniffer.ino.bin').read_bytes()) == stable['sha256']

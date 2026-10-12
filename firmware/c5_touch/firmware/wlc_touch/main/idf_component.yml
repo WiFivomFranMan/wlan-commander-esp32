@@ -1,0 +1,6 @@
+dependencies:
+  brookesia_core:
+    version: "*"
+  # brookesia_core 0.6.0-beta2 uses LV_DISP_ROTATION_*, removed after LVGL 9.3.
+  lvgl/lvgl:
+    version: "~9.3.0"

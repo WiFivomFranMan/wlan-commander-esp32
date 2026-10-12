@@ -23,8 +23,10 @@ Build and publish on owned Macs/Linux machines only. **Never use GitHub Actions.
    as a prerelease with `make_latest=false`. Never overwrite published bytes.
 6. Update the maintained `wlancommander.com` website source, experimental guide
    and experimental download metadata, then build and run its existing gates.
-   Keep stable `data/releases.json`, browser-flash manifest and OTA metadata
-   unchanged unless a stable promotion was separately tested and authorized.
+   Keep stable `data/releases.json` and OTA metadata unchanged unless a stable
+   promotion was separately tested and authorized. The October 12 owner-authorized
+   browser update selects the experimental headless build by default and retains
+   the unchanged stable bytes as an explicit model-selector option.
 7. Deploy only the website's `public/` directory to the existing Cloudflare Pages
    production project from an owned machine. Check live guide/download links,
    fetch and hash every release asset, verify signatures again, and compare the

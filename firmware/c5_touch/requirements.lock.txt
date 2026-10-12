@@ -1,0 +1,4 @@
+bleak==3.0.2
+esptool==5.4.0
+pyserial==3.5
+pyelftools==0.32

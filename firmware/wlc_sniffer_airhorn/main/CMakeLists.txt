@@ -13,6 +13,9 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/../../wlc_sniffer/wlc_sniffer.ino"
     "${CMAKE_CURRENT_SOURCE_DIR}/../prepare_sources.py"
     "${CMAKE_CURRENT_SOURCE_DIR}/combined.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/rf_approval.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/rf_approval.hpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/rf_public_key.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/command_policy.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/generator_policy.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/rf_buffers.ld"
@@ -28,15 +31,15 @@ file(GLOB_RECURSE backend_inputs CONFIGURE_DEPENDS
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${backend_inputs})
 endif()
 idf_component_register(
-    SRCS "combined.cpp" "${generated}/receiver.c" "${generated}/spectrum.c"
-        "${WLC_DEPS_DIR}/esp-sdr/main/common/burst_serial.c"
+    SRCS "combined.cpp" "rf_approval.cpp" "${generated}/receiver.c" "${generated}/spectrum.c"
+        "${generated}/burst_serial.c"
         "${WLC_DEPS_DIR}/esp-sdr/main/common/spectrum_stats.c"
     INCLUDE_DIRS "." "${generated}"
     PRIV_INCLUDE_DIRS "${WLC_DEPS_DIR}/esp-sdr/main/common"
         "${WLC_DEPS_DIR}/esp-sdr/main/targets/esp32c5"
         "${WLC_DEPS_DIR}/esp-sdr/main/diagnostics"
     REQUIRES arduino nimble_cpp esp-dsp esp_wifi esp_phy esp_timer
-        esp_driver_usb_serial_jtag esp_driver_uart nvs_flash
+        esp_driver_usb_serial_jtag esp_driver_uart nvs_flash mbedtls
 )
 target_compile_definitions(${COMPONENT_LIB} PRIVATE
     WLC_FW_GIT="airhorn-dev" ARDUINO_USB_CDC_ON_BOOT=0

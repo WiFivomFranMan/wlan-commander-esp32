@@ -1,0 +1,124 @@
+{
+  "schema": 1,
+  "release_tag": "c5-experimental-2026.10.12-9e760afc",
+  "models": [
+    {
+      "schema": 1,
+      "chip": "ESP32-C5",
+      "model": "Waveshare ESP32-C5-Touch-LCD-2.8",
+      "version": "2026.10.12+f162839b",
+      "physical_flash_bytes": 33554432,
+      "passpoint_default": "hs20_only",
+      "include_interworking_option": true,
+      "regions": [
+        {
+          "offset": 8192,
+          "file": "bootloader.bin",
+          "bytes": 23168,
+          "sha256": "b2681e5b1ee318b29a036db8735d6a39d33cd60e6329f38e9c120a35c61c7b2e"
+        },
+        {
+          "offset": 32768,
+          "file": "partition-table.bin",
+          "bytes": 3072,
+          "sha256": "761041693eee0be088f33b18f7685b6313e5c0bbd33f340a6e58a8f5b0bb812c"
+        },
+        {
+          "offset": 53248,
+          "file": "ota_data_initial.bin",
+          "bytes": 8192,
+          "sha256": "7d2c7ac4888bfd75cd5f56e8d61f69595121183afc81556c876732fd3782c62f"
+        },
+        {
+          "offset": 131072,
+          "file": "wlc_touch.bin",
+          "bytes": 2789552,
+          "sha256": "f162839bf5e06210d31e5978df993f347227e1e13d2139f0dafe8d14a54e727d"
+        },
+        {
+          "offset": 7471104,
+          "file": "wlc_sensor.bin",
+          "bytes": 1296192,
+          "sha256": "cca2e2857545b7a1482a7a41b1c96b09f813f5c2bd89e6b9fabffb27966f531c"
+        }
+      ],
+      "qualification": "2.8-inch flashed and launcher UI, Passpoint default/toggle and approval persistence verified through USB console hooks; local spectrum checked.",
+      "download": {
+        "file": "c5-touch-2_8-image.zip",
+        "bytes": 2192385,
+        "sha256": "001fd2359814b5fcd384a998fcc04d2c90c95ef4ea440456bf522f092bcca73e",
+        "url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-experimental-2026.10.12-9e760afc/c5-touch-2_8-image.zip",
+        "checksum_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-experimental-2026.10.12-9e760afc/c5-touch-2_8-image.zip.sha256",
+        "sig_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-experimental-2026.10.12-9e760afc/c5-touch-2_8-image.zip.sig"
+      },
+      "launcher_main_sha256": "89e5660d4d3c1423853b002496c6f76e2aecf5ce92a9c7c85b4ce4c23ec2579b"
+    },
+    {
+      "schema": 1,
+      "chip": "ESP32-C5",
+      "model": "Waveshare ESP32-C5-Touch-LCD-1.69",
+      "version": "2026.10.12+89df13ec",
+      "physical_flash_bytes": 16777216,
+      "passpoint_default": "hs20_only",
+      "include_interworking_option": true,
+      "regions": [
+        {
+          "offset": 8192,
+          "file": "bootloader.bin",
+          "bytes": 23168,
+          "sha256": "c907083f8808f5558670c0e7e919768779011e174c301bb3958d48490db98abf"
+        },
+        {
+          "offset": 32768,
+          "file": "partition-table.bin",
+          "bytes": 3072,
+          "sha256": "761041693eee0be088f33b18f7685b6313e5c0bbd33f340a6e58a8f5b0bb812c"
+        },
+        {
+          "offset": 53248,
+          "file": "ota_data_initial.bin",
+          "bytes": 8192,
+          "sha256": "7d2c7ac4888bfd75cd5f56e8d61f69595121183afc81556c876732fd3782c62f"
+        },
+        {
+          "offset": 131072,
+          "file": "wlc_touch.bin",
+          "bytes": 2795456,
+          "sha256": "89df13ec9706f943c2db3ceae02e84017307ad797bbc23cb4a53f695fc1d2813"
+        },
+        {
+          "offset": 7471104,
+          "file": "wlc_sensor.bin",
+          "bytes": 1304688,
+          "sha256": "40e1d8853b5922c363524f9bb242aa3141ed7f4fc9ecdee5c8207264035d7aa6"
+        }
+      ],
+      "qualification": "Build and source hashes verified. No physical 1.69-inch test for this release.",
+      "download": {
+        "file": "c5-touch-1_69-image.zip",
+        "bytes": 2198225,
+        "sha256": "968915c61c5f8074711c9c435930397c84d68eec2f8cecdfdca5cb04de58101b",
+        "url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-experimental-2026.10.12-9e760afc/c5-touch-1_69-image.zip",
+        "checksum_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-experimental-2026.10.12-9e760afc/c5-touch-1_69-image.zip.sha256",
+        "sig_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-experimental-2026.10.12-9e760afc/c5-touch-1_69-image.zip.sig"
+      },
+      "launcher_main_sha256": "89e5660d4d3c1423853b002496c6f76e2aecf5ce92a9c7c85b4ce4c23ec2579b"
+    }
+  ],
+  "source": {
+    "file": "c5-touch-source.tar.xz",
+    "bytes": 117065780,
+    "sha256": "822287dd3b32861752cb59dc044f311263067f963a23c82f8b039480508fef32",
+    "url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-experimental-2026.10.12-9e760afc/c5-touch-source.tar.xz",
+    "checksum_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-experimental-2026.10.12-9e760afc/c5-touch-source.tar.xz.sha256",
+    "sig_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-experimental-2026.10.12-9e760afc/c5-touch-source.tar.xz.sig"
+  },
+  "sdk_source": {
+    "file": "c5-all-in-one-source.tar.xz",
+    "bytes": 90695028,
+    "sha256": "fb482b205a3a7f615afee13b337b0d7f64daa1ddea6500a82a3a30382944a47b",
+    "url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-experimental-2026.10.12-9e760afc/c5-all-in-one-source.tar.xz",
+    "checksum_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-experimental-2026.10.12-9e760afc/c5-all-in-one-source.tar.xz.sha256",
+    "sig_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-experimental-2026.10.12-9e760afc/c5-all-in-one-source.tar.xz.sig"
+  }
+}

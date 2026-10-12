@@ -1,0 +1,10 @@
+Vendored from https://github.com/waveshareteam/ESP32-C5-Touch-LCD-1.69 @ 4e2a31bce8b57169039e92da9f8e447a4f34c457
+path example/esp-idf/components/esp32_c5_touch_lcd_1_69, renamed to the component name wlc_bsp
+License: Apache-2.0 (LICENSE)
+
+PATCHES
+- CMakeLists.txt: removed the block that compiled esp_lvgl_adapter with
+  -Dlv_event_get_invalidated_area(e)=... . With the adapter/LVGL 9.3 versions the 2.8 build
+  resolves, that macro breaks the adapter's own sources ("expected ')' before '*' token").
+- idf_component.yml: esp_lvgl_adapter (pinned 0.4.*, as the 2.8 build resolves) and
+  esp_lcd_touch_cst816s made public, because the public headers include them.
