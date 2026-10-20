@@ -42,7 +42,11 @@ idf_component_register(
         esp_driver_usb_serial_jtag esp_driver_uart nvs_flash mbedtls
 )
 target_compile_definitions(${COMPONENT_LIB} PRIVATE
-    WLC_FW_GIT="airhorn-dev" ARDUINO_USB_CDC_ON_BOOT=0
+    WLC_FW_GIT="${WLC_SOURCE_REVISION}"
+    WLC_FW_NAME="WLAN Commander C5 All-in-One"
+    WLC_FW_PRODUCT="WLAN_Commander_C5_All-in-One"
+    WLC_FW_BUILD_DATE="${WLC_BUILD_DATE}"
+    WLC_FW_VERSION="${WLC_BUILD_VERSION}" ARDUINO_USB_CDC_ON_BOOT=0
     CONFIG_BT_NIMBLE_ROLE_CENTRAL=0 CONFIG_BT_NIMBLE_ROLE_OBSERVER=0)
 if(WLC_SDR_BOOT_TRACE)
     target_compile_definitions(${COMPONENT_LIB} PRIVATE WLC_SDR_BOOT_TRACE=1)

@@ -1,4 +1,12 @@
-# October 12, 2026 experimental ESP32-C5 firmware
+# Experimental WLAN Commander C5 firmware
+
+The current screenless build is **WLAN Commander C5 All-in-One**, version **2026.10.20**, built **October 20, 2026**. It reports its product name, build date and version over USB and BLE. Source revisions are diagnostic metadata. Touchscreen images below retain their October 12 binaries.
+
+The browser installer displays hardware specs separately from the running firmware identity. Firmware that does not report an identity, including boards in ROM download mode, is shown as unknown. Installation logs follow new output; scroll up to pause following. Leave Erase device unchecked to retain NVS on a compatible update.
+
+[October 20 screenless release](https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/tag/c5-all-in-one-2026.10.20).
+
+## October 12 touchscreen release and prior qualification
 
 Use the [model-specific browser installer](https://wlancommander.com/sensors/esp32-c5/flash/) or download the exact image ZIP from the [immutable prerelease](https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/tag/c5-experimental-2026.10.12-9e760afc).
 

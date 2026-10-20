@@ -15,7 +15,7 @@ remain available for existing devices and integrations.
 
 | Channel / model | Firmware | Use |
 |---|---|---|
-| Experimental screenless C5 · 8 MB | `2026.10.12+9e760afc` | Latest browser default: BLE capture, USB spectrum, approved RF tools |
+| Experimental screenless C5 · 8 MB | WLAN Commander C5 All-in-One · built October 20, 2026 | Latest browser default: BLE capture, USB spectrum, approved RF tools |
 | Touch-LCD-2.8 · 32 MB | `2026.10.12+f162839b` launcher | HS2.0-only Passpoint default; optional Interworking-only results |
 | Touch-LCD-1.69 · 16 MB | `2026.10.12+89df13ec` launcher | Same features; build verified, hardware QA pending |
 | Legacy stable screenless C5 · 4/8 MB | `2026.09.07+1876915` | Explicit browser option; existing stable OTA remains unchanged |

@@ -48,6 +48,19 @@
 #ifndef WLC_FW_GIT
 #define WLC_FW_GIT "nogit"
 #endif
+#ifndef WLC_FW_NAME
+#define WLC_FW_NAME "WLAN Commander C5 Sensor"
+#endif
+#ifndef WLC_FW_PRODUCT
+#define WLC_FW_PRODUCT "WLAN_Commander_C5_Sensor"
+#endif
+#ifndef WLC_FW_BUILD_DATE
+#define WLC_FW_BUILD_DATE "unknown"
+#endif
+#ifndef WLC_FW_VERSION
+#define WLC_FW_VERSION "development"
+#endif
+
 
 // Uncomment to lock to one channel (bench test of poke + co-channel capture):
 // #define LOCK_CH 11
@@ -952,13 +965,13 @@ void loop() {
     // point of the field is to be readable from a board that may be misbehaving. `run=` is the
     // driver's actual state; `filt=`/`width=` are the *commanded* values, so that a write made
     // while stopped reads back immediately instead of after the next start.
-    char msg[448];
+    char msg[576];
     snprintf(msg, sizeof(msg),
-             "fw=%s run=%d poke=%d filt=%lx width=%u "
+             "fw=%s product=%s build=%s version=%s run=%d poke=%d filt=%lx width=%u "
              "cap=%lu fwd=%lu evt=%lu gasResp=%lu gasMine=%lu pp=%d poked=%lu ddrop=%lu rdrop=%lu "
              "odrop=%lu bdrop=%lu nfail=%lu frag=%lu poolmax=%lu chfail=%lu heap=%lu mtu=%u "
              "2.4=%lu 5G=%lu ch=%u sub=%d linkstop=%lu",
-             WLC_FW_GIT,
+             WLC_FW_GIT, WLC_FW_PRODUCT, WLC_FW_BUILD_DATE, WLC_FW_VERSION,
              isRun ? 1 : 0, pokeEnable ? 1 : 0, (unsigned long)wantFilt, (unsigned)wantWidth,
              (unsigned long)captured, (unsigned long)fwd, (unsigned long)events, (unsigned long)gasResp,
              (unsigned long)gasMine,

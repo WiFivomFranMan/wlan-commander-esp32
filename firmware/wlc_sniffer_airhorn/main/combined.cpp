@@ -316,9 +316,12 @@ void loop() {
             if (!spectrum_mode || restore_sniffer()) reply("OK\n");
             else { reply("ERR mode_restore\n"); esp_restart(); }
         } else if (!strcmp(line, "WLCINFO?")) {
-            char text[512];
+            // Keep the legacy protocol ID for deployed spectrum helpers.
+            // Product name, build date and version are the displayed identity.
+            char text[768];
             snprintf(text, sizeof(text),
-                "WLCINFO {\"firmware\":\"airhorn-dev\",\"generator_lease\":2,\"rf_approval\":1,\"passpoint_scope_protocol\":1,\"passpoint_include_interworking\":%s,\"mode\":\"%s\",\"run\":%s,\"ftm\":%s,\"heap\":%u,\"largest_internal\":%u,\"ble_initialized\":%s,\"shared_packet_pool\":true,\"fft_max\":512,\"bands_mhz\":[[2400,2483],[5150,5895]],\"board\":\"%02x:%02x:%02x:%02x:%02x:%02x\"}\n",
+                "WLCINFO {\"firmware\":\"airhorn-dev\",\"product\":\"wlan-commander-c5\",\"name\":\"%s\",\"build_date\":\"%s\",\"version\":\"%s\",\"revision\":\"%s\",\"generator_lease\":2,\"rf_approval\":1,\"passpoint_scope_protocol\":1,\"passpoint_include_interworking\":%s,\"mode\":\"%s\",\"run\":%s,\"ftm\":%s,\"heap\":%u,\"largest_internal\":%u,\"ble_initialized\":%s,\"shared_packet_pool\":true,\"fft_max\":512,\"bands_mhz\":[[2400,2483],[5150,5895]],\"board\":\"%02x:%02x:%02x:%02x:%02x:%02x\"}\n",
+                WLC_FW_NAME, WLC_FW_BUILD_DATE, WLC_FW_VERSION, WLC_FW_GIT,
                 pokeInterworking ? "true" : "false",
                 generator_mode ? "generator" : spectrum_mode ? "spectrum" : "sniffer", isRun ? "true" : "false",
                 ftmActive ? "true" : "false", (unsigned)esp_get_free_heap_size(),
