@@ -83,6 +83,8 @@ backups outside /tmp. `device_tool.py flash --slot ota_1` writes only this app,
 preserving bootloader, partition table, ota_0, otadata and NVS. Do not operate the
 USB console during flashing or verification. Scripts never trigger GitHub Actions.
 
-RF approval: touch-airhorn-v3 rejects generator entry without a signed device
+RF approval: touch-airhorn-v4 rejects generator entry without a signed device
 approval and fresh shielding acknowledgement. Session limit15min; see the root
 README for protocol, installation, offline revocation and hardware evidence.
+
+Radar repeat uses workflow 4: 1–100 complete preset events separated by the saved off-time (1–30,000 ms), with no trailing gap. Stop cancels the whole sequence. Admission reserves 1,000 ms of PHY setup allowance per event against the fixed RF session budget. `GENLOCAL?` reports the zero-based event index and total count; `RADARINFO?` describes the most recent event only. Radiated timing and DFS detection remain unverified.

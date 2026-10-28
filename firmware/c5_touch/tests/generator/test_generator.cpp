@@ -64,6 +64,36 @@ int main() {
         run.config.channel = 36; assert(!valid(run.config));
         run.config.channel = 100; run.config.tone = 0; assert(!valid(run.config));
     }
+    // Radar repeats schedule complete events with a quiet gap, never extra pulses
+    // inside a preset. Setup allowance counts toward the finite session budget.
+    for (unsigned profile = 0; profile < kRadarCount; ++profile) {
+        run = Run{}; run.config.workflow = RadarRepeat; run.config.tone = 1;
+        run.config.channel = 64; run.config.radar_profile = profile;
+        run.config.count = 3; run.config.off_ms = 300;
+        const uint32_t event_ms = duration(run.config);
+        assert(valid(run.config) && steps(run.config) == 3);
+        assert(total_ms(run.config) == event_ms * 3 + 600);
+        assert(budget_ms(run.config) == total_ms(run.config) + 3000);
+        uint32_t now = 0xfffffff0;
+        assert(run.start(now));
+        for (unsigned event = 0; event < 3; ++event) {
+            assert(run.phase == Phase::Active && run.index == event);
+            now += event_ms; run.advance(now);
+            if (event < 2) {
+                assert(run.phase == Phase::Gap);
+                assert(!run.due(now + 299));
+                now += 300; run.advance(now);
+            }
+        }
+        assert(run.phase == Phase::Complete); // No final gap or extra event.
+        assert(run.start(100)); run.advance(100 + event_ms);
+        run.stop(); run.advance(100000);
+        assert(run.phase == Phase::Stopped && !run.running());
+        run.config.count = 1;
+        assert(steps(run.config) == 1 && total_ms(run.config) == event_ms);
+        run.config.channel = 36; assert(!valid(run.config));
+        run.config.channel = 64; run.config.tone = 0; assert(!valid(run.config));
+    }
     assert(radar_duration_us(kRadar[0]) == 24277);
     run = Run{}; run.config.workflow = Pulse; run.config.on_ms = 1;
     assert(run.start(0)); run.advance(1); assert(run.phase == Phase::Gap);
@@ -104,5 +134,16 @@ int main() {
     for (unsigned yy=0; yy<240; ++yy) for(unsigned xx=0;xx<320;++xx) (void)view.pixel(xx,yy);
     view.update(run,1,false); assert(!view.start_enabled);
     view.update(run,1,true,0); assert(!view.start_enabled && !strcmp(view.frame.rows[1],"RF SESSION LOCKED"));
+    run = Run{}; run.config.workflow = RadarRepeat; run.config.channel = 64;
+    run.config.tone = 1; run.config.count = 100; run.config.off_ms = 30000;
+    assert(budget_ms(run.config) > 900000);
+    view.update(run,0,true,900000); assert(!view.start_enabled);
+    run.config.count = 3; run.config.off_ms = 300;
+    view.update(run,0,true,budget_ms(run.config) - 1); assert(!view.start_enabled);
+    view.update(run,0,true,budget_ms(run.config)); assert(view.start_enabled);
+    assert(!strcmp(view.frame.rows[5], "EVENT 1/3  18 PULSES"));
+    assert(run.start(0)); run.advance(duration(run.config));
+    view.update(run,duration(run.config),true,900000);
+    assert(!view.start_enabled && !strcmp(view.frame.rows[1], "GAP"));
     std::cout << "generator policy, scheduler, touch and renderer checks passed\n";
 }

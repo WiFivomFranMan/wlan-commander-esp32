@@ -6,9 +6,9 @@
 
 namespace wlc::generator {
 constexpr uint32_t kVersion = 2;
-constexpr const char *kImageVersion = "touch-airhorn-v3";
+constexpr const char *kImageVersion = "touch-airhorn-v4";
 constexpr uint32_t kChannels[] = {1,2,3,4,5,6,7,8,9,10,11,36,40,44,48,52,56,60,64,100,104,108,112,116,120,124,128,132,136,140,144,149,153,157,161,165};
-enum Workflow : uint32_t { Single, Traverse, Pulse, Radar };
+enum Workflow : uint32_t { Single, Traverse, Pulse, Radar, RadarRepeat };
 // Fixed-width, padding-free NVS representation shared by the two images.
 struct Config {
     uint32_t version = kVersion, workflow = Single, tone = 0, band5 = 0;
@@ -20,17 +20,21 @@ inline bool channel_valid(uint32_t channel) {
     for (auto c : kChannels) if (c == channel) return true;
     return false;
 }
+inline bool radar(const Config &c) { return c.workflow == Radar || c.workflow == RadarRepeat; }
+inline bool repeated(const Config &c) { return c.workflow == Pulse || c.workflow == RadarRepeat; }
 inline bool valid(const Config &c) {
-    return c.version == kVersion && c.workflow <= Radar && c.tone <= 1 && c.band5 <= 1 &&
+    return c.version == kVersion && c.workflow <= RadarRepeat && c.tone <= 1 && c.band5 <= 1 &&
         channel_valid(c.channel) && c.backoff_qdb <= 80 && c.single_ms >= 1 && c.single_ms <= 30000 && c.on_ms >= 1 && c.on_ms <= 30000 &&
         c.off_ms >= 1 && c.off_ms <= 30000 && c.count >= 1 && c.count <= 100 &&
         (c.dwell_ms == 5000 || c.dwell_ms == 30000) && c.radar_profile < kRadarCount &&
-        (c.workflow != Radar || (dfs_channel(c.channel) && c.tone == 1));
+        (!radar(c) || (dfs_channel(c.channel) && c.tone == 1));
 }
-inline uint32_t steps(const Config &c) { return c.workflow == Traverse ? (c.band5 ? 25 : 11) : c.workflow == Pulse ? c.count : 1; }
-inline uint32_t duration(const Config &c) { return c.workflow == Radar ? (radar_duration_us(kRadar[c.radar_profile]) + 999) / 1000 : c.workflow == Traverse ? c.dwell_ms : c.workflow == Single ? c.single_ms : c.on_ms; }
+inline uint32_t steps(const Config &c) { return c.workflow == Traverse ? (c.band5 ? 25 : 11) : repeated(c) ? c.count : 1; }
+inline uint32_t duration(const Config &c) { return radar(c) ? (radar_duration_us(kRadar[c.radar_profile]) + 999) / 1000 : c.workflow == Traverse ? c.dwell_ms : c.workflow == Single ? c.single_ms : c.on_ms; }
 inline uint32_t channel_at(const Config &c, uint32_t index) { return c.workflow == Traverse ? kChannels[(c.band5 ? 11 : 0) + index] : c.channel; }
-inline uint32_t total_ms(const Config &c) { return steps(c) * duration(c) + (c.workflow == Pulse ? (steps(c) - 1) * c.off_ms : 0); }
+inline uint32_t total_ms(const Config &c) { return steps(c) * duration(c) + (repeated(c) ? (steps(c) - 1) * c.off_ms : 0); }
+// Reserve bounded PHY setup time for every radar event, including repeats.
+inline uint32_t budget_ms(const Config &c) { return total_ms(c) + (radar(c) ? steps(c) * 1000 : 0); }
 enum class Phase : uint8_t { Ready, Active, Gap, Stopped, Complete, Error };
 inline const char *phase_name(Phase p) {
     switch (p) {
@@ -56,7 +60,7 @@ struct Run {
         if (!due(now)) return;
         if (phase == Phase::Active) {
             if (index + 1 == steps(config)) { phase = Phase::Complete; return; }
-            if (config.workflow == Pulse) { phase = Phase::Gap; deadline = now + config.off_ms; return; }
+            if (repeated(config)) { phase = Phase::Gap; deadline = now + config.off_ms; return; }
         }
         ++index; phase = Phase::Active; deadline = now + duration(config);
     }

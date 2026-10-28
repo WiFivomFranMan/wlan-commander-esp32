@@ -9,3 +9,23 @@ Full configuration and managed dependencies are in c5-touch-source.tar.xz in the
 Region layout: bootloader 0x2000, partition table 0x8000, otadata 0xd000, launcher 0x20000, sensor 0x720000. Keep NVS at 0x9000 to retain device approval. Do not erase all flash.
 
 2.8-inch: flashed and USB console UI checks completed. 1.69-inch: build verified; no physical QA for this release. See ../../docs/experimental-c5.md for exact limitations. Preserve original component license notices.
+
+## DFS radar repeat (development)
+
+AirHORN's Workflow selector includes **DFS radar repeat**, alongside the original
+one-shot DFS radar option. Set **Event count** (1–100) and **Gap between events
+(ms)** (1–30,000); each event uses the selected preset unchanged. Start runs the
+finite sequence. The generator shows the event number and quiet gap; Stop cancels
+the remaining events, including while waiting in a gap. There is no final gap.
+
+The firmware reserves up to one second of PHY setup time per radar event when
+checking the remaining 15-minute session budget. Approval, a fresh containment
+acknowledgement, session expiry and the independent stop guard still apply.
+Each event includes the existing CW setup transient. Repeat improves the chance
+of a swept analyzer observing a signal; it does not establish correct radiated
+pulse timing or access-point DFS detection.
+
+Build/install both the matching launcher and `touch-airhorn-v4` sensor image.
+The 48-byte saved configuration layout is unchanged; workflow 3 stays one-shot,
+workflow 4 repeats using the existing count and off-time fields. NVS and the signed
+device permit must be preserved during an application-slot update.

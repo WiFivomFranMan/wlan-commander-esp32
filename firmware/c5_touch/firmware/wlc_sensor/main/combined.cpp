@@ -156,7 +156,7 @@ static bool take_generator_request(wlc::generator::Config &config) {
     bool found = nvs_get_u8(h, "boot_generator", &request) == ESP_OK;
     bool valid = found && rf_approved && nvs_get_u8(h, "rf_shield_ack", &acknowledged) == ESP_OK && acknowledged == 1 && request == wlc::generator::kVersion &&
         nvs_get_blob(h, "gen_config", &candidate, &size) == ESP_OK &&
-        size == sizeof(candidate) && wlc::generator::valid(candidate) && wlc::generator::total_ms(candidate) <= rf_limit_ms;
+        size == sizeof(candidate) && wlc::generator::valid(candidate) && wlc::generator::budget_ms(candidate) <= rf_limit_ms;
     esp_err_t ack_erased = nvs_erase_key(h, "rf_shield_ack");
     if (found) {
         esp_err_t erased = nvs_erase_key(h, "boot_generator");
@@ -359,8 +359,8 @@ static void local_cancel() {
 static void local_begin_burst() {
     using namespace wlc::generator;
     const Config &c = local_run.config;
-    if (!rf_approved || !rf_session.allows(millis(), c.workflow == Radar ? (uint32_t)((radar_duration_us(kRadar[c.radar_profile]) + 1000999) / 1000) : duration(c))) { local_cancel(); return; }
-    if (c.workflow == Radar) {
+    if (!rf_approved || !rf_session.allows(millis(), radar(c) ? (uint32_t)((radar_duration_us(kRadar[c.radar_profile]) + 1000999) / 1000) : duration(c))) { local_cancel(); return; }
+    if (radar(c)) {
         generator_tone = true; generator_channel_value = c.channel; generator_backoff = c.backoff_qdb;
         // Include a bounded setup allowance, not fictitious microsecond timing
         // derived from the millisecond scheduler. The worker owns actual edges.
@@ -383,7 +383,7 @@ static void local_generator_step() {
         if (local_run.phase != Phase::Error) { generator_stop(); local_run.fail(); }
     } else if (action == Action::Return) return_to_launcher();
     else if (action == Action::Stop) local_cancel();
-    else if (action == Action::Start && rf_session.allows(millis(), total_ms(local_run.config)) && local_run.start(millis())) local_begin_burst();
+    else if (action == Action::Start && rf_session.allows(millis(), budget_ms(local_run.config)) && local_run.start(millis())) local_begin_burst();
 
     if (!rf_session.active(millis())) { if (local_run.running()) local_cancel(); rf_session.lock(); }
     if (radar_burst && local_run.phase == Phase::Active && !wlc_radar_running()) {

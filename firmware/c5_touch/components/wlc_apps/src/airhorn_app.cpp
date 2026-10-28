@@ -39,7 +39,7 @@ generator::Config generator_config() {
 }
 bool save_generator_config(const generator::Config &config) { return save(config, false); }
 bool boot_generator_image(const generator::Config &c, bool shielded_ack) {
-    if (!shielded_ack || !rf::approved() || generator::total_ms(c) > rf::kMaxSessionMs) return false;
+    if (!shielded_ack || !rf::approved() || generator::budget_ms(c) > rf::kMaxSessionMs) return false;
     const auto *slot = esp_partition_find_first(ESP_PARTITION_TYPE_APP, ESP_PARTITION_SUBTYPE_APP_OTA_1, nullptr);
     esp_app_desc_t desc{};
     if (!slot || esp_ota_get_partition_description(slot, &desc) != ESP_OK ||
@@ -70,8 +70,8 @@ void AirhornApp::build(lv_obj_t *body) {
     lv_obj_add_event_cb(ack_, [](lv_event_t *e) { static_cast<AirhornApp *>(lv_event_get_user_data(e))->changed(); }, LV_EVENT_VALUE_CHANGED, this);
     lv_obj_add_flag(body, LV_OBJ_FLAG_SCROLLABLE);
     // Numeric spinboxes use explicit +/- buttons so no keyboard covers the screen.
-    const char *names[] = {"Workflow", "Waveform", "Channel", "Traversal band", "Traversal speed", "Attenuation (0.25 dB)", "Single burst (ms)", "Pulse on (ms)", "Pulse off (ms)", "Pulse count", "Radar event pattern"};
-    const char *options[] = {"Single\nTraverse\nPulse\nDFS radar", "Packet\nCW tone", "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n36\n40\n44\n48\n52\n56\n60\n64\n100\n104\n108\n112\n116\n120\n124\n128\n132\n136\n140\n144\n149\n153\n157\n161\n165", "2.4 GHz\n5 GHz", "Fast: 5 s\nSlow: 30 s"};
+    const char *names[] = {"Workflow", "Waveform", "Channel", "Traversal band", "Traversal speed", "Attenuation (0.25 dB)", "Single burst (ms)", "Pulse on (ms)", "Gap between events (ms)", "Event count", "Radar event pattern"};
+    const char *options[] = {"Single\nTraverse\nPulse\nDFS radar\nDFS radar repeat", "Packet\nCW tone", "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n36\n40\n44\n48\n52\n56\n60\n64\n100\n104\n108\n112\n116\n120\n124\n128\n132\n136\n140\n144\n149\n153\n157\n161\n165", "2.4 GHz\n5 GHz", "Fast: 5 s\nSlow: 30 s"};
     uint32_t selected[] = {config_.workflow, config_.tone, 0, config_.band5, config_.dwell_ms == 30000 ? 1u : 0u};
     for (unsigned j = 0; j < sizeof(generator::kChannels) / sizeof(generator::kChannels[0]); ++j) if (generator::kChannels[j] == config_.channel) selected[2] = j;
     for (int i = 0; i < 11; ++i) {
@@ -131,7 +131,7 @@ void AirhornApp::changed() {
     config_.backoff_qdb = lv_spinbox_get_value(fields_[5]); config_.single_ms = lv_spinbox_get_value(fields_[6]); config_.on_ms = lv_spinbox_get_value(fields_[7]);
     config_.off_ms = lv_spinbox_get_value(fields_[8]); config_.count = lv_spinbox_get_value(fields_[9]);
     config_.radar_profile = lv_dropdown_get_selected(fields_[10]);
-    if (config_.workflow == generator::Radar) {
+    if (generator::radar(config_)) {
         config_.tone = 1; lv_dropdown_set_selected(fields_[1], 1);
         if (!generator::dfs_channel(config_.channel)) {
             config_.channel = 52; lv_dropdown_set_selected(fields_[2], 15);
@@ -143,21 +143,21 @@ void AirhornApp::changed() {
         lv_obj_add_flag(rows_[10], LV_OBJ_FLAG_HIDDEN);
     }
     for (int i : {2,3,4,7,8,9}) {
-        bool show = i == 2 ? config_.workflow != generator::Traverse : i <= 4 ? config_.workflow == generator::Traverse : config_.workflow == generator::Pulse;
+        bool show = i == 2 ? config_.workflow != generator::Traverse : i <= 4 ? config_.workflow == generator::Traverse : (config_.workflow == generator::Pulse || (config_.workflow == generator::RadarRepeat && i != 7));
         if (show) lv_obj_remove_flag(rows_[i], LV_OBJ_FLAG_HIDDEN); else lv_obj_add_flag(rows_[i], LV_OBJ_FLAG_HIDDEN);
     }
     if (config_.workflow == generator::Single) lv_obj_remove_flag(rows_[6], LV_OBJ_FLAG_HIDDEN); else lv_obj_add_flag(rows_[6], LV_OBJ_FLAG_HIDDEN);
-    char text[200];
+    char text[320];
     snprintf(text, sizeof(text), "%u.%02u dB attenuation; output power uncalibrated.\n%s\n%u bursts, %.3f s total.\nReboots to Ready. Tap Start there.",
         (unsigned)config_.backoff_qdb / 4, (unsigned)(config_.backoff_qdb % 4) * 25,
         config_.tone ? "CW is a narrow diagnostic tone." : "Packet: repeated 6 Mb/s OFDM.", (unsigned)generator::steps(config_), generator::total_ms(config_) / 1000.0);
-    if (config_.workflow == generator::Radar) {
+    if (generator::radar(config_)) {
         const auto &p = generator::kRadar[config_.radar_profile];
-        snprintf(text, sizeof(text), "%s: %.3f us pulses, %lu pulses.\nCW gate experiment. RF timing unverified; setup CW transient. Chirp/hop unavailable.\nReboots to Ready. Tap Start there.", p.name, p.width_ns / 1000.0, (unsigned long)p.pulses);
+        snprintf(text, sizeof(text), "%s: %.3f us, %lu pulses/event.\n%lu event(s), %lu ms gap.\nCW gate experiment; RF timing unverified.\nSetup CW transient per event; no chirp/hop.\nReboots to Ready. Tap Start there.", p.name, p.width_ns / 1000.0, (unsigned long)p.pulses, (unsigned long)generator::steps(config_), (unsigned long)(generator::repeated(config_) ? config_.off_ms : 0));
     }
-    bool allowed = approved_ && lv_obj_has_state(ack_, LV_STATE_CHECKED) && generator::total_ms(config_) <= rf::kMaxSessionMs;
+    bool allowed = approved_ && lv_obj_has_state(ack_, LV_STATE_CHECKED) && generator::budget_ms(config_) <= rf::kMaxSessionMs;
     if (allowed) lv_obj_remove_state(go_, LV_STATE_DISABLED); else lv_obj_add_state(go_, LV_STATE_DISABLED);
-    lv_label_set_text(note_, text);
+    lv_label_set_text(note_, generator::budget_ms(config_) > rf::kMaxSessionMs ? "Sequence exceeds the 15-minute RF session. Reduce event count or gap." : text);
     if (!save(config_, false)) lv_label_set_text(note_, "Settings could not be saved. Check NVS before opening generator.");
 }
 void AirhornApp::teardown() { note_ = ack_ = go_ = nullptr; approved_ = false; for (auto &p : fields_) p = nullptr; for (auto &p : rows_) p = nullptr; }
