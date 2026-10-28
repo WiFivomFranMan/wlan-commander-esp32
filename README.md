@@ -16,11 +16,11 @@ remain available for existing devices and integrations.
 | Channel / model | Firmware | Use |
 |---|---|---|
 | Experimental screenless C5 · 8 MB | WLAN Commander C5 All-in-One · built October 20, 2026 | Latest browser default: BLE capture, USB spectrum, approved RF tools |
-| Touch-LCD-2.8 · 32 MB | `2026.10.12+f162839b` launcher | HS2.0-only Passpoint default; optional Interworking-only results |
-| Touch-LCD-1.69 · 16 MB | `2026.10.12+89df13ec` launcher | Same features; build verified, hardware QA pending |
+| Touch-LCD-2.8 · 32 MB | `2026.10.28+a3392df0` launcher | HS2.0 Passpoint, finite radar repeat and one-tap attenuation presets |
+| Touch-LCD-1.69 · 16 MB | `2026.10.28+bddcd551` launcher | Same features; build verified, hardware QA pending |
 | Legacy stable screenless C5 · 4/8 MB | `2026.09.07+1876915` | Explicit browser option; existing stable OTA remains unchanged |
 
-[October 12 prerelease, image ZIPs, signatures and complete source](https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/tag/c5-experimental-2026.10.12-9e760afc).
+[October 28 touchscreen prerelease, image ZIPs, signatures and complete source](https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/tag/c5-touch-2026.10.28-840998e).
 [Current installation and qualification](docs/experimental-c5.md) ·
 [Touchscreen source](firmware/c5_touch/) · [Publication runbook](docs/publishing.md).
 

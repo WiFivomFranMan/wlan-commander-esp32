@@ -25,3 +25,9 @@ The browser rejects other ESP32 families and mismatched flash capacity before wr
 Screenless static SRAM margin: 728 bytes. Spectrum covers 2.4/5 GHz and has relative, uncalibrated, gapped levels; no 6 GHz. RF requires device approval and an explicit per-session shielding acknowledgement. No RF was started for approval or marketing captures. September stable OTA remains unchanged.
 
 Passpoint defaults to advertised WFA HS2.0 capability. Include Interworking-only is optional; advertising capability does not prove successful authentication.
+
+## October 28 touchscreen update
+
+Both touchscreen image ZIPs include the matching `touch-airhorn-v4` sensor and launcher. AirHORN adds a finite DFS radar repeat workflow (1–100 events with a configurable gap), Stop during gaps, and one-tap 0/10/20 dB attenuation presets. Lower attenuation means stronger output; output power remains uncalibrated.
+
+The 2.8-inch application slots were flashed and digest verified. USB checks observed all 20 events and Stop during a gap, and the new preset controls were rendered on the board. The operator reported analyzer blips; waveform timing and AP DFS detection remain unverified. The 1.69-inch pair passed builds and image/source checks without physical QA. Device approval and per-session RF containment acknowledgement remain required. Stable and screenless downloads are unchanged.
