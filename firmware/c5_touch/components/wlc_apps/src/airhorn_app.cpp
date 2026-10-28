@@ -70,14 +70,14 @@ void AirhornApp::build(lv_obj_t *body) {
     lv_obj_add_event_cb(ack_, [](lv_event_t *e) { static_cast<AirhornApp *>(lv_event_get_user_data(e))->changed(); }, LV_EVENT_VALUE_CHANGED, this);
     lv_obj_add_flag(body, LV_OBJ_FLAG_SCROLLABLE);
     // Numeric spinboxes use explicit +/- buttons so no keyboard covers the screen.
-    const char *names[] = {"Workflow", "Waveform", "Channel", "Traversal band", "Traversal speed", "Attenuation (0.25 dB)", "Single burst (ms)", "Pulse on (ms)", "Gap between events (ms)", "Event count", "Radar event pattern"};
+    const char *names[] = {"Workflow", "Waveform", "Channel", "Traversal band", "Traversal speed", "Attenuation (0.25 dB steps)", "Single burst (ms)", "Pulse on (ms)", "Gap between events (ms)", "Event count", "Radar event pattern"};
     const char *options[] = {"Single\nTraverse\nPulse\nDFS radar\nDFS radar repeat", "Packet\nCW tone", "1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n36\n40\n44\n48\n52\n56\n60\n64\n100\n104\n108\n112\n116\n120\n124\n128\n132\n136\n140\n144\n149\n153\n157\n161\n165", "2.4 GHz\n5 GHz", "Fast: 5 s\nSlow: 30 s"};
     uint32_t selected[] = {config_.workflow, config_.tone, 0, config_.band5, config_.dwell_ms == 30000 ? 1u : 0u};
     for (unsigned j = 0; j < sizeof(generator::kChannels) / sizeof(generator::kChannels[0]); ++j) if (generator::kChannels[j] == config_.channel) selected[2] = j;
     for (int i = 0; i < 11; ++i) {
         rows_[i] = lv_obj_create(body);
         lv_obj_remove_style_all(rows_[i]);
-        lv_obj_set_size(rows_[i], LV_PCT(100), (i < 5 || i == 10) ? 68 : 76);
+        lv_obj_set_size(rows_[i], LV_PCT(100), (i < 5 || i == 10) ? 68 : i == 5 ? 116 : 76);
         make_label(rows_[i], names[i], &lv_font_montserrat_12, lv_color_hex(0x9fb3c8));
         if (i < 5 || i == 10) {
             fields_[i] = lv_dropdown_create(rows_[i]);
@@ -98,10 +98,10 @@ void AirhornApp::build(lv_obj_t *body) {
             lv_spinbox_set_step(fields_[i], 1);
             lv_spinbox_set_value(fields_[i], i == 5 ? config_.backoff_qdb : i == 6 ? config_.single_ms : i == 7 ? config_.on_ms : i == 8 ? config_.off_ms : config_.count);
             lv_obj_set_size(fields_[i], 120, 44);
-            lv_obj_align(fields_[i], LV_ALIGN_BOTTOM_MID, 0, 0);
+            lv_obj_align(fields_[i], i == 5 ? LV_ALIGN_TOP_MID : LV_ALIGN_BOTTOM_MID, 0, i == 5 ? 26 : 0);
             for (int plus = 0; plus < 2; ++plus) {
                 auto *b = lv_button_create(rows_[i]); lv_obj_set_size(b, 44, 44);
-                lv_obj_align(b, plus ? LV_ALIGN_BOTTOM_RIGHT : LV_ALIGN_BOTTOM_LEFT, 0, 0);
+                lv_obj_align(b, i == 5 ? (plus ? LV_ALIGN_TOP_RIGHT : LV_ALIGN_TOP_LEFT) : (plus ? LV_ALIGN_BOTTOM_RIGHT : LV_ALIGN_BOTTOM_LEFT), 0, i == 5 ? 26 : 0);
                 lv_obj_center(make_label(b, plus ? "+" : "-", &lv_font_montserrat_16, lv_color_white()));
                 lv_obj_set_user_data(b, (void *)(intptr_t)plus);
                 lv_obj_add_event_cb(b, [](lv_event_t *e) {
@@ -109,6 +109,23 @@ void AirhornApp::build(lv_obj_t *body) {
                     auto *b = static_cast<lv_obj_t *>(lv_event_get_current_target(e));
                     if (lv_obj_get_user_data(b)) lv_spinbox_increment(sb); else lv_spinbox_decrement(sb);
                 }, LV_EVENT_CLICKED, fields_[i]);
+            }
+            if (i == 5) {
+                const char *labels[] = {"0 dB", "10 dB", "20 dB"};
+                const lv_align_t positions[] = {LV_ALIGN_BOTTOM_LEFT, LV_ALIGN_BOTTOM_MID, LV_ALIGN_BOTTOM_RIGHT};
+                for (int preset = 0; preset < 3; ++preset) {
+                    auto *button = lv_button_create(rows_[i]);
+                    lv_obj_set_size(button, LV_PCT(31), 36);
+                    lv_obj_align(button, positions[preset], 0, 0);
+                    lv_obj_center(make_label(button, labels[preset], &lv_font_montserrat_12, lv_color_white()));
+                    lv_obj_set_user_data(button, (void *)(intptr_t)(preset * 40));
+                    lv_obj_add_event_cb(button, [](lv_event_t *e) {
+                        auto *self = static_cast<AirhornApp *>(lv_event_get_user_data(e));
+                        auto *button = static_cast<lv_obj_t *>(lv_event_get_current_target(e));
+                        lv_spinbox_set_value(self->fields_[5], (intptr_t)lv_obj_get_user_data(button));
+                        self->changed();
+                    }, LV_EVENT_CLICKED, this);
+                }
             }
         }
         lv_obj_add_event_cb(fields_[i], [](lv_event_t *e) { static_cast<AirhornApp *>(lv_event_get_user_data(e))->changed(); }, LV_EVENT_VALUE_CHANGED, this);

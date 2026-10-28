@@ -29,3 +29,5 @@ Build/install both the matching launcher and `touch-airhorn-v4` sensor image.
 The 48-byte saved configuration layout is unchanged; workflow 3 stays one-shot,
 workflow 4 repeats using the existing count and off-time fields. NVS and the signed
 device permit must be preserved during an application-slot update.
+
+Attenuation has one-tap **0 dB**, **10 dB**, and **20 dB** presets, alongside the existing 0.25 dB fine adjustment. These select 0, 40, or 80 quarter-dB steps; 0 dB means no added attenuation, not a calibrated 0 dBm output.
