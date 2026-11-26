@@ -19,6 +19,17 @@ endif()
 set(SDKCONFIG "${CMAKE_BINARY_DIR}/sdkconfig")
 set(SDKCONFIG_DEFAULTS "sdkconfig.defaults;sdkconfig.defaults.${WLC_BOARD}")
 set(EXTRA_COMPONENT_DIRS "${WLC_DEPS_DIR}/arduino" "${WLC_DEPS_DIR}/esp-sdr/components/esp-dsp")
+# Release identity the app's firmware update check reads (product=/version= in the BLE status
+# line). A build host gets the tree without .git, so the publisher passes -DWLC_SOURCE_REVISION.
+string(TIMESTAMP WLC_BUILD_DATE "%Y-%m-%d" UTC)
+string(TIMESTAMP WLC_BUILD_VERSION "%Y.%m.%d" UTC)
+if(NOT WLC_SOURCE_REVISION)
+    execute_process(COMMAND git -C "${CMAKE_CURRENT_LIST_DIR}" rev-parse --short=7 HEAD
+        OUTPUT_VARIABLE WLC_SOURCE_REVISION OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+endif()
+if(NOT WLC_SOURCE_REVISION)
+    set(WLC_SOURCE_REVISION "source-archive")
+endif()
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 idf_build_set_property(COMPILE_DEFINITIONS "WLC_BOARD_${WLC_BOARD}=1" APPEND)
 set(PROJECT_VER "touch-airhorn-v4")

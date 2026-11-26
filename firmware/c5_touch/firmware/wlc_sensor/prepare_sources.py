@@ -73,9 +73,16 @@ def generate(deps, output):
     sniffer = replace_once(sniffer, "static void led_tick(uint32_t now) {", "static void led_tick(uint32_t now) {\n  if (wlc_lcd_led_override(now)) return;")
     sniffer = replace_once(sniffer, "  svc->start();", "  auto* lcdChar = svc->createCharacteristic(\"57574c43-0006-4a50-8000-0000c5000001\", NIMBLE_PROPERTY::READ);\n  static LcdInfoCB lcdInfoCB; lcdChar->setCallbacks(&lcdInfoCB);\n  svc->start();")
 
-    sniffer = replace_once(sniffer, "  if (frameChar->notify()) return true;", "  if (frameChar->notify()) { lcd_ble_forwarded += lcd_completed_records(p, n); return true; }")
+    # rx4+ hands each notification its own payload and reports acceptance; count what the
+    # phone was actually handed, as the pre-rx4 anchor did.
+    sniffer = replace_once(sniffer, "frameChar->notify(p, (size_t)n, peer)) { txok++; return true; }",
+        "frameChar->notify(p, (size_t)n, peer)) { txok++; lcd_ble_forwarded += lcd_completed_records(p, n); return true; }")
     sniffer = replace_once(sniffer, "  if (!pool_push(rtbuf, rt, f, flen)) { dropped++; return; }", "  if (!pool_push(rtbuf, rt, f, flen)) { dropped++; lcd_ring_drops++; return; }")
     (output / "sniffer.inc").write_text(sniffer)
+    # rx4+ sniffer sources include the shared RX contract header beside the .ino.
+    contract = HERE.parent / "wlc_sniffer/wlc_rx_contract.h"
+    if contract.exists():
+        (output / "wlc_rx_contract.h").write_text(contract.read_text())
     burst = (deps / "esp-sdr/main/common/burst_serial.c").read_text()
     (output / "burst_serial.c").write_text(replace_once(burst, "#define COMMAND_SIZE 128", "#define COMMAND_SIZE 224"))
     source = deps / "esp-sdr/main/families/c5_c6_c61/receiver.c"
@@ -104,8 +111,11 @@ void wlc_sdr_dispatch(char *line) { handle_command(line); }
     device = deps / "nimble/src/NimBLEDevice.cpp"
     (output / "nimble_device.cpp").write_text(native_nimble_device(device.read_text()))
     hashes = {}
-    for path in (original, source, deps / "esp-sdr/main/common/spectrum.c", device):
-        relative = "wlc_sniffer/wlc_sniffer.ino" if path == original else str(path.relative_to(deps))
+    inputs = [original, source, deps / "esp-sdr/main/common/spectrum.c", device]
+    if contract.exists():
+        inputs.append(contract)
+    for path in inputs:
+        relative = ("wlc_sniffer/" + path.name) if path.parent == original.parent else str(path.relative_to(deps))
         hashes[relative] = hashlib.sha256(path.read_bytes()).hexdigest()
     (output / "source-manifest.json").write_text(json.dumps({
         "esp_sdr_commit": UPSTREAM, "input_sha256": hashes,

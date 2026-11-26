@@ -47,9 +47,14 @@ extern "C" void initVariant(void) {
 #endif
 
 static std::atomic<bool> radio_gate{false};
+// USB carries the spectrum/command protocol in this image, so the sniffer's serial output is
+// swallowed. availableForWrite() reports no room, which makes rx4+'s compact USB status line
+// skip itself rather than interleave with protocol frames.
 struct QuietSerial {
     void begin(unsigned) {}
     void println(const char*) {}
+    int availableForWrite() { return 0; }
+    size_t write(const uint8_t*, size_t) { return 0; }
 };
 static QuietSerial quiet_serial;
 static uint32_t lcd_ble_forwarded;
