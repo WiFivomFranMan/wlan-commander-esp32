@@ -18,7 +18,7 @@ remain available for existing devices and integrations.
 | Experimental screenless C5 · 8 MB | WLAN Commander C5 All-in-One · built October 20, 2026 | Latest browser default: BLE capture, USB spectrum, approved RF tools |
 | Touch-LCD-2.8 · 32 MB | `2026.10.28+a3392df0` launcher | HS2.0 Passpoint, finite radar repeat and one-tap attenuation presets |
 | Touch-LCD-1.69 · 16 MB | `2026.10.28+bddcd551` launcher | Same features; build verified, hardware QA pending |
-| Legacy stable screenless C5 · 4/8 MB | `2026.09.07+1876915` | Explicit browser option; existing stable OTA remains unchanged |
+| Stable screenless C5 sniffer · 4/8 MB | `2026.11.26+b707a7c` | BLE sniffer with the November BLE forwarding fix (rx5); explicit browser option |
 
 [October 28 touchscreen prerelease, image ZIPs, signatures and complete source](https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/tag/c5-touch-2026.10.28-840998e).
 [Current installation and qualification](docs/experimental-c5.md) ·
@@ -28,7 +28,15 @@ The all-in-one remains experimental and GPL-3.0-or-later. Sixteen screenless boa
 
 Touchscreen Passpoint matches the WFA HS2.0 vendor IE by default. Enable **Include Interworking-only** for 802.11u Interworking advertisements. An advertised IE is not proof of successful service authentication. AirHORN requires a signed device approval and per-session shielding acknowledgement.
 
-Stable files and OTA retain their September version. The stable instructions below describe that release.
+The stable sniffer was updated on November 26, 2026 to `2026.11.26+b707a7c`. It fixes a fault in
+`2026.09.07+1876915` where, after a few minutes of capture, the board kept capturing but stopped
+forwarding frames to the phone over Bluetooth. Boards running September firmware should be
+reflashed; the WLAN Commander app now says so on the board's device page. September bytes stay
+published at their original paths. Stable files: `manifest.json`, `ota.json`,
+`firmware/2026.11.26+b707a7c/`, source `wlc_sniffer.ino` + `wlc_rx_contract.h`.
+
+The screenless all-in-one (October 20) and touchscreen (October 28) images were built before this
+fix and still carry the fault; rebuilt images will follow.
 
 ## What it does
 

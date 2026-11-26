@@ -11,7 +11,7 @@
 // the C5 behave like every other capture device in the project, and replaces a v1 that swept and
 // transmitted GAS from the instant it had power, unattended.
 //
-// ANQP: while running, the board auto-discovers Passpoint APs (802.11u / HS2.0 in beacons) and
+// ANQP: while running, the board auto-discovers HS2.0 APs (Interworking-only is opt-in) and
 // sends GAS/ANQP requests to them (a benign, standard pre-association client query — NOT an
 // attack; no deauth, no injection of forged data frames). The response is captured by this same
 // board and streamed like any other mgmt frame; the phone parses the ANQP. Poking is off by
@@ -32,6 +32,8 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include "esp_wifi.h"
+#include "esp_event.h"
+#include "wlc_rx_contract.h"
 #include <NimBLEDevice.h>
 
 // Firmware identity. Until now the image carried none at all, so "which build is
@@ -55,6 +57,7 @@ static const char* WLC_SVC  = "57574c43-0001-4a50-8000-0000c5000001";
 static const char* WLC_FRAME= "57574c43-0002-4a50-8000-0000c5000001"; // notify: radiotap+802.11
 static const char* WLC_STAT = "57574c43-0003-4a50-8000-0000c5000001"; // notify: text stats
 static const char* WLC_CMD  = "57574c43-0004-4a50-8000-0000c5000001"; // write: cmds
+static const char* WLC_FTM  = "57574c43-0005-4a50-8000-0000c5000001"; // notify: FTM results
 
 static const uint8_t DEFAULT_CH[] = {1,6,11,36,40,44,48,149,153,157,161,165};
 static uint8_t activeCh[40];
@@ -122,6 +125,7 @@ struct PPAp { uint8_t bssid[6]; uint8_t ch; uint8_t tok; uint8_t qset;
               uint32_t lastPoke; uint32_t lastRespFwd; };
 static PPAp ppap[PP_MAX];
 static volatile int ppN = 0;
+static volatile bool pokeInterworking = false;
 static volatile uint32_t poked = 0, gasResp = 0;  // pokes sent; GAS responses captured (any DA)
 
 // Dialog tokens must vary: core keys a transaction on (bssid, peer, dialog_token) and drops a
@@ -129,6 +133,11 @@ static volatile uint32_t poked = 0, gasResp = 0;  // pokes sent; GAS responses c
 static uint8_t nextTok = 1;
 static inline uint8_t alloc_tok(){ uint8_t t = nextTok++; if (nextTok == 0) nextTok = 1; return t; }
 
+// Kept independent of the radio so the exact advertisement predicate is host-testable.
+static bool passpoint_candidate_ie(uint8_t eid, const uint8_t* val, uint8_t len, bool includeInterworking) {
+  if (eid == 107) return includeInterworking && len >= 1;
+  return eid == 221 && len >= 4 && val[0] == 0x50 && val[1] == 0x6f && val[2] == 0x9a && val[3] == 0x10;
+}
 static bool pp_seen(const uint8_t* b){ for(int i=0;i<ppN;i++) if(!memcmp(ppap[i].bssid,b,6)) return true; return false; }
 static void pp_add(const uint8_t* b, uint8_t ch, uint32_t now){
   if (ppN >= PP_MAX) return;
@@ -196,27 +205,22 @@ static bool IRAM_ATTR pool_push(const uint8_t* rt, int rtlen, const uint8_t* f, 
 }
 
 // The record at the tail, or 0 when empty. `*out` is a contiguous payload of the returned length.
-static inline uint16_t pool_peek(const uint8_t** out) {
-  uint32_t t = rtail;
+// Consumer-local cursor: no ring byte becomes reusable before notify accepts its copy.
+static inline uint16_t pool_peek_cursor(uint32_t* cursor, const uint8_t** out) {
+  uint32_t t = *cursor;
   const uint32_t h = rhead;
   if (t == h) return 0;
-  // Fewer than two bytes before the end cannot hold a header, so that is an implicit wrap and
-  // needs no marker — which is what makes the `POOL_BYTES - h >= 2` guard above safe.
-  if (t + 2 > POOL_BYTES) { t = 0; rtail = 0; if (t == h) return 0; }
+  if (t + 2 > POOL_BYTES) { t = 0; if (t == h) return 0; }
   uint16_t n = (uint16_t)(pool[t] | (pool[t + 1] << 8));
-  if (n == 0) {                                  // explicit wrap marker
-    t = 0; rtail = 0;
-    if (t == h) return 0;
-    n = (uint16_t)(pool[t] | (pool[t + 1] << 8));
-    if (n == 0) return 0;                        // two markers in a row cannot happen
-  }
+  if (n == 0) { t = 0; if (t == h) return 0; n = (uint16_t)(pool[0] | (pool[1] << 8)); }
+  *cursor = t;
+  if (n == 0) return 0;
   *out = pool + t + 2;
   return n;
 }
-
-static inline void pool_pop(uint16_t n) {
-  const uint32_t t = rtail + 2 + n;
-  rtail = (t >= POOL_BYTES) ? 0 : t;
+static inline uint32_t pool_after(uint32_t cursor, uint16_t n) {
+  const uint32_t next = cursor + 2 + n;
+  return next >= POOL_BYTES ? 0 : next;
 }
 
 static inline uint32_t pool_used(void) {
@@ -226,6 +230,8 @@ static volatile uint32_t dropped = 0, captured = 0, cap24 = 0, cap5 = 0;
 static volatile uint32_t fwd = 0, ddrop = 0, events = 0;
 // Each of these was an unnamed discard that incremented `fwd` on its way out. A drop with no
 // counter reads as a working sensor, which is exactly how the ANQP loss stayed invisible.
+static volatile uint32_t rxlastpair=0, rxobserved=0;
+static volatile uint32_t rxerr = 0, rxlen = 0; // SDK receive errors/incomplete dump spans; separate from buffer loss
 static volatile uint32_t odrop = 0;    // refused at capture: frame larger than MAX_FRAME
 static volatile uint32_t bdrop = 0;    // refused at the BLE stage
 static volatile uint32_t nfail = 0;    // notify() returned false — link full, frame kept
@@ -248,7 +254,67 @@ static inline bool beacon_due(const uint8_t* bssid, uint32_t now) {
 
 static NimBLECharacteristic* frameChar = nullptr;
 static NimBLECharacteristic* statChar  = nullptr;
+static NimBLECharacteristic* ftmChar   = nullptr;
 static volatile bool subscribed = false;
+
+// One radio: a ranging session is admitted only while the sniffer is stopped. BLE callbacks
+// stage requests; the Arduino loop alone calls the Wi-Fi driver. The event callback only copies
+// its report and the loop sends the notification. Both callbacks can preempt loop(), so protect
+// the small mailbox. The host waits for one result before requesting the next measurement.
+static portMUX_TYPE ftmMux = portMUX_INITIALIZER_UNLOCKED;
+struct FtmRequest { uint16_t id; uint8_t mac[6]; uint8_t channel; };
+static FtmRequest ftmQueued = {};
+static bool ftmHasQueued = false;
+static bool ftmCancelQueued = false;
+static uint16_t ftmCancelId = 0;
+static volatile bool ftmActive = false;
+static uint32_t ftmStarted = 0;
+static uint16_t ftmActiveId = 0;
+static uint8_t ftmActiveMac[6] = {};
+static uint8_t ftmActiveChannel = 0;
+static uint8_t ftmResults[4][24] = {};
+static uint8_t ftmResultHead = 0;
+static volatile uint8_t ftmResultCount = 0;
+
+// Version 1, fixed 24-byte record: version, status, request-id LE, peer MAC, channel,
+// measurement count, raw RTT ns LE, estimated RTT ns LE, estimated distance cm LE.
+// Status 0 is success, 1..127 are driver status, 128 busy, 129 invalid, 130 timeout,
+// 131 cancelled, 132 start error. No zero-distance result is treated as success by the host.
+static void ftm_u32(uint8_t* p, uint32_t value) {
+  for (int i = 0; i < 4; ++i) p[i] = (uint8_t)(value >> (8 * i));
+}
+static void ftm_make_result(uint16_t id, const uint8_t* mac, uint8_t channel,
+                            uint8_t status, uint8_t count, uint32_t raw, uint32_t est,
+                            uint32_t distance) {
+  portENTER_CRITICAL(&ftmMux);
+  if (ftmResultCount < 4) {
+    uint8_t* result = ftmResults[(ftmResultHead + ftmResultCount) % 4];
+    result[0] = 1; result[1] = status;
+    result[2] = id & 0xff; result[3] = id >> 8;
+    memcpy(result + 4, mac, 6);
+    result[10] = channel; result[11] = count;
+    ftm_u32(result + 12, raw); ftm_u32(result + 16, est);
+    ftm_u32(result + 20, distance);
+    ++ftmResultCount;
+  }
+  portEXIT_CRITICAL(&ftmMux);
+}
+static void ftm_event(void*, esp_event_base_t, int32_t, void* data) {
+  const auto* report = static_cast<const wifi_event_ftm_report_t*>(data);
+  portENTER_CRITICAL(&ftmMux);
+  bool matches = ftmActive && memcmp(report->peer_mac, ftmActiveMac, 6) == 0;
+  uint16_t id = ftmActiveId;
+  uint8_t channel = ftmActiveChannel;
+  if (matches) ftmActive = false;
+  portEXIT_CRITICAL(&ftmMux);
+  if (!matches) return;
+  uint8_t status = (uint8_t)report->status;
+  if (status > 127) status = 127;
+  ftm_make_result(id, report->peer_mac, channel, status,
+                  report->ftm_report_num_entries, report->rtt_raw, report->rtt_est,
+                  report->dist_est);
+  if (report->ftm_report_num_entries) esp_wifi_ftm_get_report(nullptr, 0);
+}
 
 class SubCB : public NimBLECharacteristicCallbacks {
   void onSubscribe(NimBLECharacteristic*, NimBLEConnInfo&, uint16_t val) override { subscribed = (val != 0); }
@@ -288,7 +354,7 @@ class SrvCB : public NimBLEServerCallbacks {
 };
 // Phone -> board: 0x01=SET_CHANNELS(+chan bytes); 0x02=ADD_POKE(+ [6 bssid,1 ch] records);
 // 0x03=SET_POKE_ENABLE(+1 byte 0/1); 0x04=SET_RUN(+1 byte 0/1); 0x05=SET_FILTER(+u32 LE mask);
-// 0x06=SET_WIDTH(+1 byte 0/1/2).
+// 0x06=SET_WIDTH(+1 byte 0/1/2); 0x09=SET_POKE_SCOPE(+1 byte 0 HS2.0 only / 1 include 11u).
 //
 // Nothing here calls the wifi driver. 0x01 has always staged into `pendCh` for `loop()` to adopt,
 // and the three new opcodes follow it rather than acting: they set a `want*` and `loop()`
@@ -320,27 +386,33 @@ class CmdCB : public NimBLECharacteristicCallbacks {
                | ((uint32_t)d[3] << 16) | ((uint32_t)d[4] << 24);
     } else if (n >= 2 && d[0] == 0x06 && d[1] <= 2) {   // SET_WIDTH; out of range is a no-op,
       wantWidth = d[1];                                 // same as 0x01's invalid-channel rule
+    } else if (n == 10 && d[0] == 0x07) {               // FTM_START
+      FtmRequest request = {};
+      request.id = (uint16_t)d[1] | ((uint16_t)d[2] << 8);
+      memcpy(request.mac, d + 3, 6);
+      request.channel = d[9];
+      portENTER_CRITICAL(&ftmMux);
+      bool busy = ftmHasQueued;
+      if (!busy) { ftmQueued = request; ftmHasQueued = true; }
+      portEXIT_CRITICAL(&ftmMux);
+      if (busy) ftm_make_result(request.id, request.mac, request.channel, 128, 0, 0, 0, 0);
+    } else if (n == 2 && d[0] == 0x09 && d[1] <= 1) { // SET_POKE_SCOPE
+      if (pokeInterworking != (d[1] != 0)) {
+        pokeInterworking = (d[1] != 0);
+        ppN = 0; // discard targets collected under the previous scope
+      }
+    } else if (n == 3 && d[0] == 0x08) {               // FTM_CANCEL
+      portENTER_CRITICAL(&ftmMux);
+      ftmCancelId = (uint16_t)d[1] | ((uint16_t)d[2] << 8);
+      ftmCancelQueued = true;
+      portEXIT_CRITICAL(&ftmMux);
     }
   }
 };
 
 static int build_radiotap(uint8_t* out, int8_t rssi, uint8_t ch) {
-  uint16_t freq = (ch <= 14) ? (ch == 14 ? 2484 : 2407 + ch*5) : (5000 + ch*5);
-  uint16_t chflags = (ch <= 14) ? 0x00A0 : 0x0140;
-  out[0]=0; out[1]=0;
-  uint32_t present = (1u<<1)|(1u<<2)|(1u<<3)|(1u<<5);
-  out[4]=present&0xff; out[5]=(present>>8)&0xff; out[6]=(present>>16)&0xff; out[7]=(present>>24)&0xff;
-  int o = 8;
-  out[o++] = 0x10;
-  out[o++] = 2;
-  out[o++] = freq & 0xff; out[o++] = (freq>>8)&0xff;
-  out[o++] = chflags & 0xff; out[o++] = (chflags>>8)&0xff;
-  out[o++] = (uint8_t)rssi;
-  uint16_t len = o;
-  out[2]=len&0xff; out[3]=(len>>8)&0xff;
-  return len;
+  return wlc_build_rx_radiotap(out, rssi, ch);
 }
-
 // GAS Initial Request for ANQP — the action **body** only, category onwards.
 //
 // The driver writes the 802.11 header now, which is the whole point: the source address is the
@@ -407,7 +479,15 @@ static volatile uint32_t gasMine = 0;
 static void IRAM_ATTR promisc_cb(void* buf, wifi_promiscuous_pkt_type_t type) {
   if (type != WIFI_PKT_MGMT && type != WIFI_PKT_CTRL) return;
   const wifi_promiscuous_pkt_t* p = (const wifi_promiscuous_pkt_t*)buf;
-  int flen = p->rx_ctrl.sig_len;
+  // Actual SDK length contract is qualified in wlc_rx_contract.h. Preserve
+  // coherent raw metadata diagnostics before any refusal, including errors.
+  rxlastpair = (uint32_t(p->rx_ctrl.sig_len) << 16) | p->rx_ctrl.dump_len;
+  if (p->rx_ctrl.dump_len == p->rx_ctrl.sig_len + 4) rxobserved++;
+  const WlcRxDecision received = wlc_rx_decision(p->rx_ctrl.sig_len,
+      p->rx_ctrl.dump_len, p->rx_ctrl.rx_state);
+  if (received.refusal == WlcRxRefusal::ReceiveError) { rxerr++; return; }
+  if (received.refusal != WlcRxRefusal::None) { rxlen++; return; }
+  int flen = received.payload_length;
   if (flen < 24) { dropped++; return; }   // `flen` is signed, so this covers <= 0 too
   if (flen > MAX_FRAME)       { odrop++;   return; }   // oversize is its own fact, not ring-full
   const uint8_t* f = p->payload;
@@ -461,8 +541,7 @@ static void IRAM_ATTR promisc_cb(void* buf, wifi_promiscuous_pkt_type_t type) {
         uint8_t eid = f[i], ln = f[i+1];
         if (i + 2 + ln > flen) break;
         const uint8_t* val = f + i + 2;
-        if (eid == 107) pp = true;                                    // 802.11u Interworking
-        if (eid == 221 && ln >= 4 && val[0]==0x50 && val[1]==0x6f && val[2]==0x9a && val[3]==0x10) pp = true; // HS2.0
+        if (passpoint_candidate_ie(eid, val, ln, pokeInterworking)) pp = true;
         if (eid == 3  && ln >= 1) dsch = val[0];                      // DS Parameter Set
         if (eid == 61 && ln >= 1 && dsch == 0) dsch = val[0];         // HT Operation primary ch
         i += 2 + ln;
@@ -477,7 +556,7 @@ static void IRAM_ATTR promisc_cb(void* buf, wifi_promiscuous_pkt_type_t type) {
   }
 
   uint8_t rtbuf[16];
-  const int rt = build_radiotap(rtbuf, p->rx_ctrl.rssi, cur_ch);
+  const int rt = build_radiotap(rtbuf, p->rx_ctrl.rssi, p->rx_ctrl.channel);
   if (!pool_push(rtbuf, rt, f, flen)) { dropped++; return; }
   fwd++;
   { const uint32_t u = pool_used(); if (u > poolmax) poolmax = u; }
@@ -486,6 +565,10 @@ static void IRAM_ATTR promisc_cb(void* buf, wifi_promiscuous_pkt_type_t type) {
 
 void setup() {
   Serial.begin(115200);
+#if ARDUINO_USB_CDC_ON_BOOT && ARDUINO_USB_MODE
+  Serial.setTxTimeoutMs(0); // Diagnostics may drop; control loop must not wait on USB host.
+#endif
+
   delay(200);
 
   NimBLEDevice::init("WLC-C5-Sniffer");
@@ -495,6 +578,7 @@ void setup() {
   NimBLEService* svc = srv->createService(WLC_SVC);
   frameChar = svc->createCharacteristic(WLC_FRAME, NIMBLE_PROPERTY::NOTIFY);
   statChar  = svc->createCharacteristic(WLC_STAT,  NIMBLE_PROPERTY::NOTIFY);
+  ftmChar   = svc->createCharacteristic(WLC_FTM,   NIMBLE_PROPERTY::NOTIFY);
   NimBLECharacteristic* cmdChar = svc->createCharacteristic(WLC_CMD, NIMBLE_PROPERTY::WRITE | NIMBLE_PROPERTY::WRITE_NR);
   static CmdCB cmdcb; cmdChar->setCallbacks(&cmdcb);
   static SubCB subcb; frameChar->setCallbacks(&subcb);
@@ -507,6 +591,9 @@ void setup() {
   WiFi.mode(WIFI_MODE_STA);
   WiFi.setBandMode(WIFI_BAND_MODE_AUTO);
   WiFi.disconnect();
+  esp_event_handler_instance_t ftmHandler;
+  esp_event_handler_instance_register(WIFI_EVENT, WIFI_EVENT_FTM_REPORT,
+                                      ftm_event, nullptr, &ftmHandler);
   // The callback is registered now; promiscuous stays **off** until 0x04 SET_RUN 1. The filter is
   // applied from `wantFilt` at every start, so there is nothing to set here either.
   esp_wifi_set_promiscuous(false);
@@ -601,13 +688,23 @@ static uint16_t notify_cap() {
 
 // notify() returns false when NimBLE has no mbufs left. That return was discarded and `tail`
 // had already advanced, so those frames were counted in `fwd` and dropped without a trace.
+static uint32_t frameRetryAt = 0;
+static uint32_t frameRetryMs = 4;
+static bool frameRetryWaiting = false;
+static volatile uint32_t txok = 0, txrec = 0;
+static void frame_notify_progress() { frameRetryWaiting = false; frameRetryMs = 4; }
 static bool emit(const uint8_t* p, int n) {
-  frameChar->setValue(p, n);
-  if (frameChar->notify()) return true;
-  nfail++;                        // the frames stay in the ring and go out on a later pass
+  // AGENT C5-TX: no-argument notify() schedules a characteristic update and
+  // cannot report mbuf failure. Snapshot each payload for this exact peer so
+  // successful handoff owns the bytes and backpressure leaves the ring intact.
+  const uint16_t peer = connH;
+  if (peer != 0xFFFF && frameChar->notify(p, (size_t)n, peer)) { txok++; return true; }
+  nfail++;
+  frameRetryAt = millis() + frameRetryMs;
+  frameRetryWaiting = true;
+  frameRetryMs = frameRetryMs < 64 ? frameRetryMs * 2 : 64;
   return false;
 }
-
 // One oversized frame as a run of fragment records, each owning a whole notification. The top
 // two bits of the length word are a record type; the low 14 hold the bytes in this record:
 //
@@ -648,9 +745,120 @@ static bool emit_fragments(const uint8_t* p, uint16_t total, uint16_t cap) {
   return true;
 }
 
+// Called after controls on every loop; a failed send never blocks Stop or status work.
+static void drain_frame_notifications(uint32_t now) {
+  if (subscribed && isRun && frameChar) {
+    if (frameRetryWaiting && (int32_t)(now - frameRetryAt) < 0) return;
+    static uint8_t batch[BLE_BUF];
+    uint16_t cap = notify_cap();
+    int blen = 0, budget = 96;
+    uint32_t cursor = rtail, batchEnd = rtail;
+    uint32_t batchRecords = 0;
+    bool failed = false;
+    const uint8_t* rec = nullptr;
+    uint16_t fl;
+    while ((fl = pool_peek_cursor(&cursor, &rec)) != 0 && budget-- > 0) {
+      if ((uint32_t)fl + 2 > (uint32_t)cap) {
+        if (blen > 0) {
+          if (!emit(batch, blen)) { failed = true; break; }
+          rtail = batchEnd; txrec += batchRecords; frame_notify_progress();
+          blen = 0; batchRecords = 0;
+        }
+        if (!emit_fragments(rec, fl, cap)) { failed = true; break; }
+        fragged++; txrec++; cursor = pool_after(cursor, fl); rtail = cursor;
+        frame_notify_progress();
+        continue;
+      }
+      if (blen + 2 + fl > cap) {
+        if (!emit(batch, blen)) { failed = true; break; }
+        rtail = batchEnd; txrec += batchRecords; frame_notify_progress();
+        blen = 0; batchRecords = 0;
+      }
+      batch[blen++] = fl & 0xff; batch[blen++] = (fl >> 8) & 0xff;
+      memcpy(batch + blen, rec, fl); blen += fl;
+      cursor = pool_after(cursor, fl); batchEnd = cursor; batchRecords++;
+    }
+    // No duplicate immediate retry of the same refused batch in this loop pass.
+    if (blen > 0 && !failed && emit(batch, blen)) {
+      rtail = batchEnd; txrec += batchRecords; frame_notify_progress();
+    }
+  } else {
+    rtail = rhead;
+    frame_notify_progress();
+  }
+}
+
 void loop() {
   uint32_t now = millis();
   led_tick(now);
+
+  FtmRequest request = {};
+  bool haveRequest = false, cancel = false;
+  uint16_t cancelId = 0;
+  portENTER_CRITICAL(&ftmMux);
+  if (ftmHasQueued) { request = ftmQueued; ftmHasQueued = false; haveRequest = true; }
+  if (ftmCancelQueued) { cancelId = ftmCancelId; ftmCancelQueued = false; cancel = true; }
+  portEXIT_CRITICAL(&ftmMux);
+  if (cancel) {
+    portENTER_CRITICAL(&ftmMux);
+    bool ending = ftmActive && cancelId == ftmActiveId;
+    if (ending) ftmActive = false;
+    portEXIT_CRITICAL(&ftmMux);
+    if (ending) {
+      esp_wifi_ftm_end_session();
+      ftm_make_result(cancelId, ftmActiveMac, ftmActiveChannel, 131, 0, 0, 0, 0);
+    }
+  }
+  if (ftmActive && now - ftmStarted > 15000) {
+    portENTER_CRITICAL(&ftmMux);
+    bool ending = ftmActive;
+    if (ending) ftmActive = false;
+    portEXIT_CRITICAL(&ftmMux);
+    if (ending) {
+      esp_wifi_ftm_end_session();
+      ftm_make_result(ftmActiveId, ftmActiveMac, ftmActiveChannel, 130, 0, 0, 0, 0);
+    }
+  }
+  if (haveRequest) {
+    if (ftmActive || isRun || wantRun) {
+      ftm_make_result(request.id, request.mac, request.channel, 128, 0, 0, 0, 0);
+    } else if (!((request.channel >= 1 && request.channel <= 14) ||
+                 (request.channel >= 36 && request.channel <= 177))) {
+      ftm_make_result(request.id, request.mac, request.channel, 129, 0, 0, 0, 0);
+    } else {
+      wifi_ftm_initiator_cfg_t cfg = {};
+      memcpy(cfg.resp_mac, request.mac, 6);
+      cfg.channel = request.channel;
+      cfg.frm_count = 16;
+      cfg.burst_period = 0;
+      cfg.use_get_report_api = true;
+      portENTER_CRITICAL(&ftmMux);
+      ftmActive = true; ftmStarted = now; ftmActiveId = request.id;
+      memcpy(ftmActiveMac, request.mac, 6);
+      ftmActiveChannel = request.channel;
+      portEXIT_CRITICAL(&ftmMux);
+      const esp_err_t err = esp_wifi_ftm_initiate_session(&cfg);
+      if (err != ESP_OK) {
+        portENTER_CRITICAL(&ftmMux);
+        ftmActive = false;
+        portEXIT_CRITICAL(&ftmMux);
+        ftm_make_result(request.id, request.mac, request.channel, 132, 0, 0, 0, 0);
+      }
+    }
+  }
+  if (ftmResultCount && ftmChar) {
+    uint8_t result[24];
+    portENTER_CRITICAL(&ftmMux);
+    memcpy(result, ftmResults[ftmResultHead], sizeof(result));
+    portEXIT_CRITICAL(&ftmMux);
+    ftmChar->setValue(result, sizeof(result));
+    if (ftmChar->notify()) {
+      portENTER_CRITICAL(&ftmMux);
+      ftmResultHead = (ftmResultHead + 1) % 4;
+      --ftmResultCount;
+      portEXIT_CRITICAL(&ftmMux);
+    }
+  }
 
   if (pendN >= 0) {
     int k = pendN; for (int i = 0; i < k; i++) activeCh[i] = pendCh[i];
@@ -671,7 +879,7 @@ void loop() {
 
   // Reconcile what the phone asked for. Every wifi driver call in this sketch is reached from
   // here, so the start order — filter, then channel+width, then promiscuous — is stated once.
-  if (wantRun != isRun) {
+  if (wantRun != isRun && !ftmActive) {
     isRun = wantRun;
     if (isRun) {
       appliedFilt = wantFilt;
@@ -744,40 +952,7 @@ void loop() {
     }
   }
 
-  // Forwarded only while somebody is listening *and* capture was asked for. Everything else is
-  // discarded below rather than left to age in the ring, so a start never opens with frames
-  // captured before it.
-  if (subscribed && isRun && frameChar) {
-    static uint8_t batch[BLE_BUF];
-    uint16_t cap = notify_cap();
-    int blen = 0, budget = 96;
-    uint32_t mark = rtail;                   // start of what is staged but not yet delivered
-    const uint8_t* rec = nullptr;
-    uint16_t fl;
-    while ((fl = pool_peek(&rec)) != 0 && budget-- > 0) {
-      if ((uint32_t)fl + 2 > (uint32_t)cap) {
-        // Larger than one notification. This used to be a silent `continue` — the frame was
-        // skipped after `fwd++` had already counted it delivered, and it appeared in no drop
-        // counter. It is the reason a full-size ANQP answer never reached the phone.
-        if (blen > 0) { if (!emit(batch, blen)) { rtail = mark; break; } blen = 0; }
-        if (!emit_fragments(rec, fl, cap)) break;   // kept in the ring; retried next pass
-        fragged++;
-        pool_pop(fl); mark = rtail;
-        continue;
-      }
-
-      if (blen + 2 + fl > cap) {
-        if (!emit(batch, blen)) { rtail = mark; break; }
-        blen = 0; mark = rtail;
-      }
-      batch[blen++] = fl & 0xff; batch[blen++] = (fl >> 8) & 0xff;
-      memcpy(batch + blen, rec, fl); blen += fl;
-      pool_pop(fl);
-    }
-    if (blen > 0 && !emit(batch, blen)) rtail = mark;
-  } else {
-    rtail = rhead;   // discard whatever was captured while stopped or unsubscribed
-  }
+  drain_frame_notifications(now);
 
   if (now - lastStat >= 2000) {
     lastStat = now;
@@ -793,15 +968,16 @@ void loop() {
     // point of the field is to be readable from a board that may be misbehaving. `run=` is the
     // driver's actual state; `filt=`/`width=` are the *commanded* values, so that a write made
     // while stopped reads back immediately instead of after the next start.
-    char msg[448];
+    const uint32_t lastpair = rxlastpair;
+    char msg[512]; // Includes explicit RX-contract/refusal counters.
     snprintf(msg, sizeof(msg),
-             "fw=%s run=%d poke=%d filt=%lx width=%u "
-             "cap=%lu fwd=%lu evt=%lu gasResp=%lu gasMine=%lu pp=%d poked=%lu ddrop=%lu rdrop=%lu "
+             "fw=%s rxlast=%lu/%lu rxobserved=%lu rxcontract=2 rxerr=%lu rxlen=%lu run=%d poke=%d filt=%lx width=%u "
+             "cap=%lu fwd=%lu txok=%lu txrec=%lu evt=%lu gasResp=%lu gasMine=%lu pp=%d poked=%lu ddrop=%lu rdrop=%lu "
              "odrop=%lu bdrop=%lu nfail=%lu frag=%lu poolmax=%lu chfail=%lu heap=%lu mtu=%u "
              "2.4=%lu 5G=%lu ch=%u sub=%d linkstop=%lu",
-             WLC_FW_GIT,
+             WLC_FW_GIT, (unsigned long)(lastpair >> 16), (unsigned long)(lastpair & 0xffff), (unsigned long)rxobserved, (unsigned long)rxerr, (unsigned long)rxlen,
              isRun ? 1 : 0, pokeEnable ? 1 : 0, (unsigned long)wantFilt, (unsigned)wantWidth,
-             (unsigned long)captured, (unsigned long)fwd, (unsigned long)events, (unsigned long)gasResp,
+             (unsigned long)captured, (unsigned long)fwd, (unsigned long)txok, (unsigned long)txrec, (unsigned long)events, (unsigned long)gasResp,
              (unsigned long)gasMine,
              ppN, (unsigned long)poked, (unsigned long)ddrop, (unsigned long)dropped,
              (unsigned long)odrop, (unsigned long)bdrop, (unsigned long)nfail, (unsigned long)fragged,
@@ -809,8 +985,18 @@ void loop() {
              (unsigned long)esp_get_free_heap_size(), (unsigned)notify_cap() + 3,
              (unsigned long)cap24, (unsigned long)cap5, cur_ch, subscribed?1:0,
              (unsigned long)linkStops);
-    Serial.println(msg);
+    // HWCDC's default TX ring is 256 bytes, smaller than the BLE status. Keep
+    // a complete, compact USB line so bounded logging remains readable.
+    char usb[128];
+    const int usbLen = snprintf(usb, sizeof(usb),
+        "fw=%s rxcontract=2 run=%d ch=%u cap=%lu rxerr=%lu rxlen=%lu\n",
+        WLC_FW_GIT, isRun ? 1 : 0, cur_ch, (unsigned long)captured,
+        (unsigned long)rxerr, (unsigned long)rxlen);
+    if (usbLen > 0 && usbLen < int(sizeof(usb)) && Serial.availableForWrite() >= usbLen) {
+      Serial.write((const uint8_t*)usb, size_t(usbLen));
+    }
     if (subscribed && statChar) { statChar->setValue((uint8_t*)msg, strlen(msg)); statChar->notify(); }
   }
-}
+  delay(1); // RTOS fairness; never spin on exhausted notification buffers.
 
+}
