@@ -127,7 +127,7 @@
     "versioned_sensor_identity",
     "unchanged_october28_launcher"
   ],
-  "notes_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/tag/c5-touch-2026.10.28-840998e",
+  "notes_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/tag/c5-touch-2026.11.26-9b539ed",
   "channel": "experimental",
   "automatic_update": false
 }
