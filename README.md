@@ -15,7 +15,7 @@ remain available for existing devices and integrations.
 
 | Channel / model | Firmware | Use |
 |---|---|---|
-| Experimental screenless C5 · 8 MB | WLAN Commander C5 All-in-One · built October 20, 2026 | Latest browser default: BLE capture, USB spectrum, approved RF tools |
+| Experimental screenless C5 · 8 MB | WLAN Commander C5 All-in-One · built November 26, 2026 | Latest browser default: BLE capture, USB spectrum, approved RF tools |
 | Touch-LCD-2.8 · 32 MB | October 28 launcher + November 26 sensor | HS2.0 Passpoint, finite radar repeat and one-tap attenuation presets |
 | Touch-LCD-1.69 · 16 MB | October 28 launcher + November 26 sensor | Same features; build verified, hardware QA pending |
 | Stable screenless C5 sniffer · 4/8 MB | `2026.11.26+b707a7c` | BLE sniffer with the November BLE forwarding fix (rx5); explicit browser option |
