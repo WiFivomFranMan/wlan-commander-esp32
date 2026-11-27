@@ -93,7 +93,7 @@
           "sha256": "93c5f2f5d930695a7ba37e10086b1c783081d7e993f0a51e26a251b306675e79"
         }
       ],
-      "qualification": "Unchanged October 28 launcher/boot regions plus November 26 rx5 sensor application. Exact new sensor binary is build/static/source verified only; physical hardware QA pending. Prior launcher tests do not qualify the changed sensor slot.",
+      "qualification": "Unchanged October 28 launcher/boot regions plus November 26 rx5 sensor application. November 27: one exact five-region bundle passed flash/readback, launcher framebuffer/software Sensor navigation and BLE AP/client scan/Stop on channels 6 and 36 with Pixel 6 Pro / Android 16 / app 170. USB independently confirmed Stop. Physical touch, RF tools, ranging, sustained/reconnect and combined topology qualification remain pending.",
       "download": {
         "file": "c5-touch-1_69-image.zip",
         "bytes": 2187951,
@@ -102,7 +102,13 @@
         "checksum_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-touch-2026.11.26-9b539ed/c5-touch-1_69-image.zip.sha256",
         "sig_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-touch-2026.11.26-9b539ed/c5-touch-1_69-image.zip.sig"
       },
-      "launcher_main_sha256": "89e5660d4d3c1423853b002496c6f76e2aecf5ce92a9c7c85b4ce4c23ec2579b"
+      "launcher_main_sha256": "89e5660d4d3c1423853b002496c6f76e2aecf5ce92a9c7c85b4ce4c23ec2579b",
+      "hardware_observations": {
+        "date": "2026-11-27",
+        "physical_boards": 1,
+        "controller": "Pixel 6 Pro / Android 16 / WLAN Commander 1.1.1 (170)",
+        "full_qualification": false
+      }
     }
   ],
   "source": {

@@ -17,16 +17,16 @@ remain available for existing devices and integrations.
 |---|---|---|
 | Experimental screenless C5 · 8 MB | WLAN Commander C5 All-in-One · built November 26, 2026 | Latest browser default: BLE capture, USB spectrum, approved RF tools |
 | Touch-LCD-2.8 · 32 MB | October 28 launcher + November 26 sensor | HS2.0 Passpoint, finite radar repeat and one-tap attenuation presets |
-| Touch-LCD-1.69 · 16 MB | October 28 launcher + November 26 sensor | Same features; build verified, hardware QA pending |
+| Touch-LCD-1.69 · 16 MB | October 28 launcher + November 26 sensor | Same features; basic BLE scan/Stop observed on one board; full QA pending |
 | Stable screenless C5 sniffer · 4/8 MB | `2026.11.26+b707a7c` | BLE sniffer with the November BLE forwarding fix (rx5); explicit browser option |
 
 [November 26 touchscreen prerelease, image ZIPs, signatures and complete source](https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/tag/c5-touch-2026.11.26-9b539ed).
 
-November 26 bundles retain the October 28 launcher and boot regions and replace the sensor slots with the rx5 BLE forwarding fix and product/version identity. The all-in-one is also rebuilt. These exact experimental binaries have build/static/source checks only; matching-board hardware QA is pending. Older hardware results below are historical, not qualification of the new sensor slots.
+November 26 bundles retain the October 28 launcher and boot regions and replace the sensor slots with the rx5 BLE forwarding fix and product/version identity. The all-in-one is also rebuilt. November 27 limited hardware checks: one 8 MB screenless board and one Touch-LCD-1.69 board flashed the exact published regions with independent readback verification. Pixel 6 Pro / Android 16 / app build 170 received BLE AP/client results on channels 6 and 36 and stopped both boards; USB status independently confirmed Stop. The 1.69 launcher framebuffer and software Sensor navigation were checked. These observations do not qualify physical touch, RF tools, ranging, sustained operation, reconnect or combined-device topologies. The 2.8-inch November sensor slot remains hardware QA pending.
 [Current installation and qualification](docs/experimental-c5.md) ·
 [Touchscreen source](firmware/c5_touch/) · [Publication runbook](docs/publishing.md).
 
-The all-in-one remains experimental and GPL-3.0-or-later. Earlier images had sixteen screenless-board flash checks and 2.8-inch launcher screenshot/tap checks. Those historical results do not qualify the new November 26 sensor binaries. The 1.69-inch has no physical QA for this release. The web installer supports ESP32-C5 only, checks flash capacity and hashes, and uses model-specific layouts. Download both corresponding-source archives to rebuild touchscreen applications with the exact shared SDK dependencies. No GitHub Actions are used.
+The all-in-one remains experimental and GPL-3.0-or-later. Earlier images had sixteen screenless-board flash checks and 2.8-inch launcher screenshot/tap checks. Those historical results do not qualify the new November 26 sensor binaries. The 1.69-inch has the limited November 27 observations above; full qualification is pending. The web installer supports ESP32-C5 only, checks flash capacity and hashes, and uses model-specific layouts. Download both corresponding-source archives to rebuild touchscreen applications with the exact shared SDK dependencies. No GitHub Actions are used.
 
 Touchscreen Passpoint matches the WFA HS2.0 vendor IE by default. Enable **Include Interworking-only** for 802.11u Interworking advertisements. An advertised IE is not proof of successful service authentication. AirHORN requires a signed device approval and per-session shielding acknowledgement.
 
@@ -37,8 +37,8 @@ reflashed; the WLAN Commander app now says so on the board's device page. Septem
 published at their original paths. Stable files: `manifest.json`, `ota.json`,
 `firmware/2026.11.26+b707a7c/`, source `wlc_sniffer.ino` + `wlc_rx_contract.h`.
 
-The screenless all-in-one (October 20) and touchscreen (October 28) images were built before this
-fix and still carry the fault; rebuilt images will follow.
+The older screenless all-in-one (October 20) and touchscreen sensor slots (October 28) predate this
+fix. Their November 26 replacements are published in the experimental channels above.
 
 ## What it does
 

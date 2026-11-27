@@ -45,7 +45,7 @@
   },
   "source_license": "GPL-3.0-or-later",
   "automatic_flashing": false,
-  "hardware_qualification": "Build/static/source checks passed. Exact November 26 binary has no physical hardware QA. Previous-image results are historical only.",
+  "hardware_qualification": "Build/static/source checks passed. November 27: one 8 MB screenless board passed exact-region flash/readback and basic BLE scan/Stop on channels 6 and 36 with Android 16 / Pixel 6 Pro / app 170. Full hardware qualification remains pending.",
   "downloads": {
     "image": {
       "file": "c5-all-in-one-image.zip",
@@ -76,7 +76,7 @@
   "notes_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/tag/c5-all-in-one-2026.11.26",
   "qualified_physical_boards": 0,
   "limitations": [
-    "Only ESP32-C5 on 8 MB screenless hardware. Exact November 26 image hardware QA is pending.",
+    "Only ESP32-C5 on 8 MB screenless hardware. One exact-image basic BLE scan/Stop observation; full hardware qualification remains pending.",
     "2.4 and 5 GHz only; spectrum levels are relative and uncalibrated.",
     "Static SRAM margin is 424 bytes in this build. Experimental release; no stable OTA promotion.",
     "RF requires device approval and per-session shielding acknowledgement. No new RF transmission qualification in this release."
@@ -96,5 +96,16 @@
   },
   "name": "WLAN Commander C5 All-in-One",
   "build_date": "2026-11-26",
-  "required_flash_bytes": 8388608
+  "required_flash_bytes": 8388608,
+  "hardware_observations": {
+    "date": "2026-11-27",
+    "physical_boards": 1,
+    "controller": "Pixel 6 Pro / Android 16 / WLAN Commander 1.1.1 (170)",
+    "scope": [
+      "exact published four-region flash and independent readback",
+      "BLE AP/client reception on channels 6 and 36",
+      "Stop confirmed independently over USB"
+    ],
+    "full_qualification": false
+  }
 }
