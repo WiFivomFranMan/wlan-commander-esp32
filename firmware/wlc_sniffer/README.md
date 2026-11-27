@@ -16,6 +16,70 @@ this project, told what to do and started and stopped explicitly.
 > `run=0`. A board that is genuinely dead notifies nothing. Both apps at time of writing send only
 > `0x01`/`0x02`/`0x03`, so every one of them is an old app until it learns `0x04`.
 
+## Receive payload contract (October31 correction)
+
+This adapter is qualified for ESP32-C5 Arduino3.3.11 / ESP-IDF5.5.5. Actual
+hardware reports `dump_len == sig_len + 4`, contrary to its SDK header comment.
+Simultaneous reference captures show the available MAC body is `sig_len - 4`.
+The firmware requires that measured length relation and successful receive
+status, copies only that body, and leaves the radiotap FCS-present flag clear.
+`rxcontract=2`, raw `rxlast=sig/dump`, `rxobserved`, `rxlen` and `rxerr` expose
+this contract. Other SDK layouts require separate hardware qualification.
+An absent FCS does not mean a software-verified checksum.
+
+Earlier firmware copied `sig_len` and advertised FCS, including four unavailable
+tail bytes. Preserve those old records as invalid-integrity evidence; never
+normalize them by firmware name or a tail-byte pattern. The first proposed
+header-based correction (`rxcontract=1`) compiled but refused every real frame;
+its failed hardware evidence is preserved.
+
+The installed rx5 backpressure correction also protects the transmit-ring read
+cursor until each notification handoff succeeds, and uses bounded 4–64 ms retry
+backoff with an RTOS yield. The earlier rx4 65-second check passed, but a later
+Duo run exposed millions of refusal retries, ring drops and stalled forwarding
+after a few minutes. That failure is preserved; the short check did not qualify
+sustained operation. NimBLE owns the notification buffer on success and failure;
+no manual buffer free was added.
+
+Rx5 passed a 65-second paired run with 1,662 original records and 26 exact
+whole-MAC beacon matches to independently valid Pro references. Fifteen bad-FCS
+Pro references were excluded, and no valid-reference mismatch was found. BLE
+Stop ACK plus observed idle completed in 695 ms. A OnePlus MTU517 run lasted
+12 min 26 s and retained 12,755 original records, exactly matching captured
+records minus intentional deduplication. A Duo MTU513 run lasted 10 min 14 s,
+retaining 7,941 records, exactly matching the firmware pool-admission increase.
+Both sustained runs reported no ring/batch drops and confirmed Stop over BLE.
+Refusals were recovered, not claimed absent. These are bounded channel-hop tests,
+not all-over-air reception or every-channel guarantees. Evidence:
+`~/WLAN-Commander-artifacts/c5-sustained-backpressure-20261031/`.
+
+`fwd` counts pool admissions; `txok` counts accepted host notification calls;
+`txrec` counts complete records handed to the host. None proves over-air or
+phone delivery. `nfail` counts refused attempts, not dropped records. The
+hardware qualification compares retained original files separately.
+
+Opening the board's USB serial port during a BLE run reset it even with DTR/RTS
+set false before open. Use BLE status for live qualification; USB reads are not
+an independent non-mutating live-status check on this tested setup.
+
+USB diagnostics use zero-timeout, capacity-checked single writes. An unread
+serial terminal must not block capture/Stop; USB logging may be dropped.
+
+Frame delivery uses NimBLE's explicit payload/peer notification overload. The
+no-argument characteristic-update call can coalesce updates and does not report
+allocation refusal. An explicit handoff snapshots each frame for the original
+peer; refusal leaves its ring data for retry and increments `nfail`. Extracted
+production-function tests reproduce the old missing-refusal failure and verify
+the corrected handoff, immutable bytes and disconnected-peer refusal. Hardware
+backpressure and Stop latency remain separate acceptance checks.
+
+The radiotap header reports the SDK's receive channel and RSSI. It omits rate,
+MCS/NSS and modulation flags because this producer has no qualified mapping for
+them; the old synthesized 1 Mbps/CCK value was not a measured rate. Unknown
+receive channel is omitted. Tests execute the actual builder for both bands and
+missing-channel input; old fabricated-rate behavior is preserved as a failing
+baseline. The corrected metadata does not recover historical PHY observations.
+
 ## Why this directory exists
 
 **This was very nearly lost.** It was written in a session scratchpad under `/private/tmp`,

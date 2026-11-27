@@ -1,12 +1,12 @@
 {
   "schema": 1,
-  "release_tag": "c5-touch-2026.10.28-840998e",
+  "release_tag": "c5-touch-2026.11.26-9b539ed",
   "models": [
     {
       "schema": 1,
       "chip": "ESP32-C5",
       "model": "Waveshare ESP32-C5-Touch-LCD-2.8",
-      "version": "2026.10.28+a3392df0",
+      "version": "2026.11.26+sensor6f277e01",
       "physical_flash_bytes": 33554432,
       "passpoint_default": "hs20_only",
       "include_interworking_option": true,
@@ -38,18 +38,18 @@
         {
           "offset": 7471104,
           "file": "wlc_sensor.bin",
-          "bytes": 1296880,
-          "sha256": "ff9329bd3b095731937c931215480d499fbc16156986d7fe3e033cd48bc80acc"
+          "bytes": 1297456,
+          "sha256": "6f277e017f2de435f74149418f034c67c1942fb085d1d7522e38e855145b625c"
         }
       ],
-      "qualification": "2.8-inch application slots flashed and digest verified; finite 20-event repeat and Stop in a gap verified through USB control; attenuation preset layout rendered on device. Operator reported RF blips; radar timing and AP DFS detection remain unverified.",
+      "qualification": "Unchanged October 28 launcher/boot regions plus November 26 rx5 sensor application. Exact new sensor binary is build/static/source verified only; physical hardware QA pending. Prior launcher tests do not qualify the changed sensor slot.",
       "download": {
         "file": "c5-touch-2_8-image.zip",
-        "bytes": 2181428,
-        "sha256": "9e399a70b60d993ec058ba2744f89acdfc8e5f70a9b2a95d95bbf9d36a1af219",
-        "url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-touch-2026.10.28-840998e/c5-touch-2_8-image.zip",
-        "checksum_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-touch-2026.10.28-840998e/c5-touch-2_8-image.zip.sha256",
-        "sig_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-touch-2026.10.28-840998e/c5-touch-2_8-image.zip.sig"
+        "bytes": 2181874,
+        "sha256": "4a5bd3a37064b1bd7f1fb79bc3ea0a46fb38ddc2a69d9a16e0b01b05bf64629c",
+        "url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-touch-2026.11.26-9b539ed/c5-touch-2_8-image.zip",
+        "checksum_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-touch-2026.11.26-9b539ed/c5-touch-2_8-image.zip.sha256",
+        "sig_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-touch-2026.11.26-9b539ed/c5-touch-2_8-image.zip.sig"
       },
       "launcher_main_sha256": "89e5660d4d3c1423853b002496c6f76e2aecf5ce92a9c7c85b4ce4c23ec2579b"
     },
@@ -57,7 +57,7 @@
       "schema": 1,
       "chip": "ESP32-C5",
       "model": "Waveshare ESP32-C5-Touch-LCD-1.69",
-      "version": "2026.10.28+bddcd551",
+      "version": "2026.11.26+sensor93c5f2f5",
       "physical_flash_bytes": 16777216,
       "passpoint_default": "hs20_only",
       "include_interworking_option": true,
@@ -89,29 +89,29 @@
         {
           "offset": 7471104,
           "file": "wlc_sensor.bin",
-          "bytes": 1305424,
-          "sha256": "eff9e71938371926facf3b786242c5f731646a82bc31a4aecc85172e48865b5f"
+          "bytes": 1305968,
+          "sha256": "93c5f2f5d930695a7ba37e10086b1c783081d7e993f0a51e26a251b306675e79"
         }
       ],
-      "qualification": "Build, source and binary checks passed. No physical 1.69-inch QA for this release.",
+      "qualification": "Unchanged October 28 launcher/boot regions plus November 26 rx5 sensor application. Exact new sensor binary is build/static/source verified only; physical hardware QA pending. Prior launcher tests do not qualify the changed sensor slot.",
       "download": {
         "file": "c5-touch-1_69-image.zip",
-        "bytes": 2187318,
-        "sha256": "0b714248cbc503367c9dc1aa3f4b06173b23d46e8542d6fcd0630436f26c0413",
-        "url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-touch-2026.10.28-840998e/c5-touch-1_69-image.zip",
-        "checksum_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-touch-2026.10.28-840998e/c5-touch-1_69-image.zip.sha256",
-        "sig_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-touch-2026.10.28-840998e/c5-touch-1_69-image.zip.sig"
+        "bytes": 2187951,
+        "sha256": "209fafde37cf1418e6cb4b3acdfc51fba2fc4bfea106dc4e9a495748ed255797",
+        "url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-touch-2026.11.26-9b539ed/c5-touch-1_69-image.zip",
+        "checksum_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-touch-2026.11.26-9b539ed/c5-touch-1_69-image.zip.sha256",
+        "sig_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-touch-2026.11.26-9b539ed/c5-touch-1_69-image.zip.sig"
       },
       "launcher_main_sha256": "89e5660d4d3c1423853b002496c6f76e2aecf5ce92a9c7c85b4ce4c23ec2579b"
     }
   ],
   "source": {
     "file": "c5-touch-source.tar.xz",
-    "bytes": 117087848,
-    "sha256": "c18b26405291fe86031e53e84281653df03d24d7dae2eea3d2ff5a5de8d8833c",
-    "url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-touch-2026.10.28-840998e/c5-touch-source.tar.xz",
-    "checksum_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-touch-2026.10.28-840998e/c5-touch-source.tar.xz.sha256",
-    "sig_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-touch-2026.10.28-840998e/c5-touch-source.tar.xz.sig"
+    "bytes": 117092208,
+    "sha256": "6822b429bf83f84cc98a3540ab97172f0751bd4fe1d175850851e0cfa7d47113",
+    "url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-touch-2026.11.26-9b539ed/c5-touch-source.tar.xz",
+    "checksum_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-touch-2026.11.26-9b539ed/c5-touch-source.tar.xz.sha256",
+    "sig_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-touch-2026.11.26-9b539ed/c5-touch-source.tar.xz.sig"
   },
   "sdk_source": {
     "file": "c5-all-in-one-source.tar.xz",
@@ -121,10 +121,11 @@
     "checksum_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-experimental-2026.10.12-9e760afc/c5-all-in-one-source.tar.xz.sha256",
     "sig_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-experimental-2026.10.12-9e760afc/c5-all-in-one-source.tar.xz.sig"
   },
-  "built": "2026-10-28",
+  "built": "2026-11-26",
   "features": [
-    "finite_radar_repeat",
-    "attenuation_presets"
+    "rx5_ble_forwarding",
+    "versioned_sensor_identity",
+    "unchanged_october28_launcher"
   ],
   "notes_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/tag/c5-touch-2026.10.28-840998e",
   "channel": "experimental",

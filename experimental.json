@@ -3,11 +3,11 @@
   "chip": "esp32c5",
   "firmware": "wlan-commander-c5",
   "experimental": true,
-  "app_sha256": "a0ac569c87fbde4617f5bf9f36e8bf1b2f751d1872718b10cb1394dc3a435a3d",
+  "app_sha256": "b416dbe5842aff551781316c5c5c2a427e1a0606ca0aa8f3217baf745c09855a",
   "generator_lease_protocol": 2,
   "rf_approval_protocol": 1,
   "max_rf_session_ms": 900000,
-  "static_margin_bytes": 728,
+  "static_margin_bytes": 424,
   "physical_flash_bytes_qualified": 8388608,
   "image_flash_size": "4MB",
   "regions": [
@@ -15,7 +15,7 @@
       "offset": 8192,
       "file": "bootloader.bin",
       "bytes": 22080,
-      "sha256": "d3b947ea6d946fcf111b80e99eeb1630afab49e37c93fa90f2abbd686a57cac1"
+      "sha256": "d0c76eec80fc2142297e34fd3943aaa9e165cea812d11b6a34bd487b097663f3"
     },
     {
       "offset": 32768,
@@ -32,8 +32,8 @@
     {
       "offset": 65536,
       "file": "wlc_sniffer_sdr.bin",
-      "bytes": 1260768,
-      "sha256": "a0ac569c87fbde4617f5bf9f36e8bf1b2f751d1872718b10cb1394dc3a435a3d"
+      "bytes": 1261072,
+      "sha256": "b416dbe5842aff551781316c5c5c2a427e1a0606ca0aa8f3217baf745c09855a"
     }
   ],
   "dependency_commits": {
@@ -45,36 +45,36 @@
   },
   "source_license": "GPL-3.0-or-later",
   "automatic_flashing": false,
-  "hardware_qualification": "One physical screenless 8 MB ESP32-C5: browser inspection, all four flash regions written and MD5 verified, watchdog reboot and runtime product/build-date identity readback passed. No new RF transmission or FTM qualification.",
+  "hardware_qualification": "Build/static/source checks passed. Exact November 26 binary has no physical hardware QA. Previous-image results are historical only.",
   "downloads": {
     "image": {
       "file": "c5-all-in-one-image.zip",
-      "bytes": 838509,
-      "sha256": "c38fd74d0898ce5f63b6b8b8d3d630f5a3d77900c11a094c4baa128a7263f8cc",
-      "url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-all-in-one-2026.10.20/c5-all-in-one-image.zip",
-      "checksum_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-all-in-one-2026.10.20/c5-all-in-one-image.zip.sha256",
-      "sig_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-all-in-one-2026.10.20/c5-all-in-one-image.zip.sig"
+      "bytes": 838888,
+      "sha256": "c66b9d13bb9d423c8e266b5442ad9a9073b6b45f4d25eda6050e78a061d8de3e",
+      "url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-all-in-one-2026.11.26/c5-all-in-one-image.zip",
+      "checksum_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-all-in-one-2026.11.26/c5-all-in-one-image.zip.sha256",
+      "sig_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-all-in-one-2026.11.26/c5-all-in-one-image.zip.sig"
     },
     "source": {
       "file": "c5-all-in-one-source.tar.xz",
-      "bytes": 103373696,
-      "sha256": "a0ccd97b580f50db9073646e2e0122e8f9cb5d18fa5619f1cfb6b8f72a9d69f4",
-      "url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-all-in-one-2026.10.20/c5-all-in-one-source.tar.xz",
-      "checksum_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-all-in-one-2026.10.20/c5-all-in-one-source.tar.xz.sha256",
-      "sig_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-all-in-one-2026.10.20/c5-all-in-one-source.tar.xz.sig"
+      "bytes": 104198768,
+      "sha256": "f32126e8c443aecac0d0b5aa41ee44830941e025e8f962643d0eea624995afa2",
+      "url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-all-in-one-2026.11.26/c5-all-in-one-source.tar.xz",
+      "checksum_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-all-in-one-2026.11.26/c5-all-in-one-source.tar.xz.sha256",
+      "sig_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-all-in-one-2026.11.26/c5-all-in-one-source.tar.xz.sig"
     }
   },
-  "local_build_date": "2026-10-20",
+  "local_build_date": "2026-11-26",
   "passpoint_scope_protocol": 1,
   "passpoint_default": "hs20_only",
-  "version": "2026.10.20",
-  "release_tag": "c5-all-in-one-2026.10.20",
+  "version": "2026.11.26",
+  "release_tag": "c5-all-in-one-2026.11.26",
   "channel": "experimental",
-  "built": "2026-10-20",
-  "published": "2026-10-20",
+  "built": "2026-11-26",
+  "published": "2026-11-26",
   "automatic_update": false,
-  "notes_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/tag/c5-all-in-one-2026.10.20",
-  "qualified_physical_boards": 1,
+  "notes_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/tag/c5-all-in-one-2026.11.26",
+  "qualified_physical_boards": 0,
   "limitations": [
     "Only ESP32-C5; all-in-one image qualified on 8 MB screenless hardware.",
     "2.4 and 5 GHz only; spectrum levels are relative and uncalibrated.",
@@ -83,17 +83,17 @@
   ],
   "application": {
     "file": "wlc_sniffer_sdr.bin",
-    "bytes": 1260768,
-    "sha256": "a0ac569c87fbde4617f5bf9f36e8bf1b2f751d1872718b10cb1394dc3a435a3d",
-    "url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-all-in-one-2026.10.20/wlc_sniffer_sdr.bin",
-    "checksum_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-all-in-one-2026.10.20/wlc_sniffer_sdr.bin.sha256",
-    "sig_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-all-in-one-2026.10.20/wlc_sniffer_sdr.bin.sig"
+    "bytes": 1261072,
+    "sha256": "b416dbe5842aff551781316c5c5c2a427e1a0606ca0aa8f3217baf745c09855a",
+    "url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-all-in-one-2026.11.26/wlc_sniffer_sdr.bin",
+    "checksum_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-all-in-one-2026.11.26/wlc_sniffer_sdr.bin.sha256",
+    "sig_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-all-in-one-2026.11.26/wlc_sniffer_sdr.bin.sig"
   },
   "release_signature": {
     "algorithm": "RSA-SHA256",
-    "public_key_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-all-in-one-2026.10.20/01-release-2026.pub",
+    "public_key_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/download/c5-all-in-one-2026.11.26/01-release-2026.pub",
     "firmware_enforces_signature": false
   },
   "name": "WLAN Commander C5 All-in-One",
-  "build_date": "2026-10-20"
+  "build_date": "2026-11-26"
 }

@@ -33,6 +33,7 @@
 #include <WiFi.h>
 #include "esp_wifi.h"
 #include "esp_event.h"
+#include "wlc_rx_contract.h"
 #include <NimBLEDevice.h>
 
 // Firmware identity. Until now the image carried none at all, so "which build is
@@ -48,19 +49,14 @@
 #ifndef WLC_FW_GIT
 #define WLC_FW_GIT "nogit"
 #endif
-#ifndef WLC_FW_NAME
-#define WLC_FW_NAME "WLAN Commander C5 Sensor"
-#endif
+#ifdef WLC_FW_VERSION
 #ifndef WLC_FW_PRODUCT
 #define WLC_FW_PRODUCT "WLAN_Commander_C5_Sensor"
 #endif
 #ifndef WLC_FW_BUILD_DATE
 #define WLC_FW_BUILD_DATE "unknown"
 #endif
-#ifndef WLC_FW_VERSION
-#define WLC_FW_VERSION "development"
 #endif
-
 
 // Uncomment to lock to one channel (bench test of poke + co-channel capture):
 // #define LOCK_CH 11
@@ -217,27 +213,22 @@ static bool IRAM_ATTR pool_push(const uint8_t* rt, int rtlen, const uint8_t* f, 
 }
 
 // The record at the tail, or 0 when empty. `*out` is a contiguous payload of the returned length.
-static inline uint16_t pool_peek(const uint8_t** out) {
-  uint32_t t = rtail;
+// Consumer-local cursor: no ring byte becomes reusable before notify accepts its copy.
+static inline uint16_t pool_peek_cursor(uint32_t* cursor, const uint8_t** out) {
+  uint32_t t = *cursor;
   const uint32_t h = rhead;
   if (t == h) return 0;
-  // Fewer than two bytes before the end cannot hold a header, so that is an implicit wrap and
-  // needs no marker — which is what makes the `POOL_BYTES - h >= 2` guard above safe.
-  if (t + 2 > POOL_BYTES) { t = 0; rtail = 0; if (t == h) return 0; }
+  if (t + 2 > POOL_BYTES) { t = 0; if (t == h) return 0; }
   uint16_t n = (uint16_t)(pool[t] | (pool[t + 1] << 8));
-  if (n == 0) {                                  // explicit wrap marker
-    t = 0; rtail = 0;
-    if (t == h) return 0;
-    n = (uint16_t)(pool[t] | (pool[t + 1] << 8));
-    if (n == 0) return 0;                        // two markers in a row cannot happen
-  }
+  if (n == 0) { t = 0; if (t == h) return 0; n = (uint16_t)(pool[0] | (pool[1] << 8)); }
+  *cursor = t;
+  if (n == 0) return 0;
   *out = pool + t + 2;
   return n;
 }
-
-static inline void pool_pop(uint16_t n) {
-  const uint32_t t = rtail + 2 + n;
-  rtail = (t >= POOL_BYTES) ? 0 : t;
+static inline uint32_t pool_after(uint32_t cursor, uint16_t n) {
+  const uint32_t next = cursor + 2 + n;
+  return next >= POOL_BYTES ? 0 : next;
 }
 
 static inline uint32_t pool_used(void) {
@@ -247,6 +238,8 @@ static volatile uint32_t dropped = 0, captured = 0, cap24 = 0, cap5 = 0;
 static volatile uint32_t fwd = 0, ddrop = 0, events = 0;
 // Each of these was an unnamed discard that incremented `fwd` on its way out. A drop with no
 // counter reads as a working sensor, which is exactly how the ANQP loss stayed invisible.
+static volatile uint32_t rxlastpair=0, rxobserved=0;
+static volatile uint32_t rxerr = 0, rxlen = 0; // SDK receive errors/incomplete dump spans; separate from buffer loss
 static volatile uint32_t odrop = 0;    // refused at capture: frame larger than MAX_FRAME
 static volatile uint32_t bdrop = 0;    // refused at the BLE stage
 static volatile uint32_t nfail = 0;    // notify() returned false — link full, frame kept
@@ -426,22 +419,8 @@ class CmdCB : public NimBLECharacteristicCallbacks {
 };
 
 static int build_radiotap(uint8_t* out, int8_t rssi, uint8_t ch) {
-  uint16_t freq = (ch <= 14) ? (ch == 14 ? 2484 : 2407 + ch*5) : (5000 + ch*5);
-  uint16_t chflags = (ch <= 14) ? 0x00A0 : 0x0140;
-  out[0]=0; out[1]=0;
-  uint32_t present = (1u<<1)|(1u<<2)|(1u<<3)|(1u<<5);
-  out[4]=present&0xff; out[5]=(present>>8)&0xff; out[6]=(present>>16)&0xff; out[7]=(present>>24)&0xff;
-  int o = 8;
-  out[o++] = 0x10;
-  out[o++] = 2;
-  out[o++] = freq & 0xff; out[o++] = (freq>>8)&0xff;
-  out[o++] = chflags & 0xff; out[o++] = (chflags>>8)&0xff;
-  out[o++] = (uint8_t)rssi;
-  uint16_t len = o;
-  out[2]=len&0xff; out[3]=(len>>8)&0xff;
-  return len;
+  return wlc_build_rx_radiotap(out, rssi, ch);
 }
-
 // GAS Initial Request for ANQP — the action **body** only, category onwards.
 //
 // The driver writes the 802.11 header now, which is the whole point: the source address is the
@@ -508,7 +487,15 @@ static volatile uint32_t gasMine = 0;
 static void IRAM_ATTR promisc_cb(void* buf, wifi_promiscuous_pkt_type_t type) {
   if (type != WIFI_PKT_MGMT && type != WIFI_PKT_CTRL) return;
   const wifi_promiscuous_pkt_t* p = (const wifi_promiscuous_pkt_t*)buf;
-  int flen = p->rx_ctrl.sig_len;
+  // Actual SDK length contract is qualified in wlc_rx_contract.h. Preserve
+  // coherent raw metadata diagnostics before any refusal, including errors.
+  rxlastpair = (uint32_t(p->rx_ctrl.sig_len) << 16) | p->rx_ctrl.dump_len;
+  if (p->rx_ctrl.dump_len == p->rx_ctrl.sig_len + 4) rxobserved++;
+  const WlcRxDecision received = wlc_rx_decision(p->rx_ctrl.sig_len,
+      p->rx_ctrl.dump_len, p->rx_ctrl.rx_state);
+  if (received.refusal == WlcRxRefusal::ReceiveError) { rxerr++; return; }
+  if (received.refusal != WlcRxRefusal::None) { rxlen++; return; }
+  int flen = received.payload_length;
   if (flen < 24) { dropped++; return; }   // `flen` is signed, so this covers <= 0 too
   if (flen > MAX_FRAME)       { odrop++;   return; }   // oversize is its own fact, not ring-full
   const uint8_t* f = p->payload;
@@ -577,7 +564,7 @@ static void IRAM_ATTR promisc_cb(void* buf, wifi_promiscuous_pkt_type_t type) {
   }
 
   uint8_t rtbuf[16];
-  const int rt = build_radiotap(rtbuf, p->rx_ctrl.rssi, cur_ch);
+  const int rt = build_radiotap(rtbuf, p->rx_ctrl.rssi, p->rx_ctrl.channel);
   if (!pool_push(rtbuf, rt, f, flen)) { dropped++; return; }
   fwd++;
   { const uint32_t u = pool_used(); if (u > poolmax) poolmax = u; }
@@ -586,6 +573,10 @@ static void IRAM_ATTR promisc_cb(void* buf, wifi_promiscuous_pkt_type_t type) {
 
 void setup() {
   Serial.begin(115200);
+#if ARDUINO_USB_CDC_ON_BOOT && ARDUINO_USB_MODE
+  Serial.setTxTimeoutMs(0); // Diagnostics may drop; control loop must not wait on USB host.
+#endif
+
   delay(200);
 
   NimBLEDevice::init("WLC-C5-Sniffer");
@@ -705,13 +696,23 @@ static uint16_t notify_cap() {
 
 // notify() returns false when NimBLE has no mbufs left. That return was discarded and `tail`
 // had already advanced, so those frames were counted in `fwd` and dropped without a trace.
+static uint32_t frameRetryAt = 0;
+static uint32_t frameRetryMs = 4;
+static bool frameRetryWaiting = false;
+static volatile uint32_t txok = 0, txrec = 0;
+static void frame_notify_progress() { frameRetryWaiting = false; frameRetryMs = 4; }
 static bool emit(const uint8_t* p, int n) {
-  frameChar->setValue(p, n);
-  if (frameChar->notify()) return true;
-  nfail++;                        // the frames stay in the ring and go out on a later pass
+  // AGENT C5-TX: no-argument notify() schedules a characteristic update and
+  // cannot report mbuf failure. Snapshot each payload for this exact peer so
+  // successful handoff owns the bytes and backpressure leaves the ring intact.
+  const uint16_t peer = connH;
+  if (peer != 0xFFFF && frameChar->notify(p, (size_t)n, peer)) { txok++; return true; }
+  nfail++;
+  frameRetryAt = millis() + frameRetryMs;
+  frameRetryWaiting = true;
+  frameRetryMs = frameRetryMs < 64 ? frameRetryMs * 2 : 64;
   return false;
 }
-
 // One oversized frame as a run of fragment records, each owning a whole notification. The top
 // two bits of the length word are a record type; the low 14 hold the bytes in this record:
 //
@@ -750,6 +751,49 @@ static bool emit_fragments(const uint8_t* p, uint16_t total, uint16_t cap) {
     off += n; first = false;
   }
   return true;
+}
+
+// Called after controls on every loop; a failed send never blocks Stop or status work.
+static void drain_frame_notifications(uint32_t now) {
+  if (subscribed && isRun && frameChar) {
+    if (frameRetryWaiting && (int32_t)(now - frameRetryAt) < 0) return;
+    static uint8_t batch[BLE_BUF];
+    uint16_t cap = notify_cap();
+    int blen = 0, budget = 96;
+    uint32_t cursor = rtail, batchEnd = rtail;
+    uint32_t batchRecords = 0;
+    bool failed = false;
+    const uint8_t* rec = nullptr;
+    uint16_t fl;
+    while ((fl = pool_peek_cursor(&cursor, &rec)) != 0 && budget-- > 0) {
+      if ((uint32_t)fl + 2 > (uint32_t)cap) {
+        if (blen > 0) {
+          if (!emit(batch, blen)) { failed = true; break; }
+          rtail = batchEnd; txrec += batchRecords; frame_notify_progress();
+          blen = 0; batchRecords = 0;
+        }
+        if (!emit_fragments(rec, fl, cap)) { failed = true; break; }
+        fragged++; txrec++; cursor = pool_after(cursor, fl); rtail = cursor;
+        frame_notify_progress();
+        continue;
+      }
+      if (blen + 2 + fl > cap) {
+        if (!emit(batch, blen)) { failed = true; break; }
+        rtail = batchEnd; txrec += batchRecords; frame_notify_progress();
+        blen = 0; batchRecords = 0;
+      }
+      batch[blen++] = fl & 0xff; batch[blen++] = (fl >> 8) & 0xff;
+      memcpy(batch + blen, rec, fl); blen += fl;
+      cursor = pool_after(cursor, fl); batchEnd = cursor; batchRecords++;
+    }
+    // No duplicate immediate retry of the same refused batch in this loop pass.
+    if (blen > 0 && !failed && emit(batch, blen)) {
+      rtail = batchEnd; txrec += batchRecords; frame_notify_progress();
+    }
+  } else {
+    rtail = rhead;
+    frame_notify_progress();
+  }
 }
 
 void loop() {
@@ -916,40 +960,7 @@ void loop() {
     }
   }
 
-  // Forwarded only while somebody is listening *and* capture was asked for. Everything else is
-  // discarded below rather than left to age in the ring, so a start never opens with frames
-  // captured before it.
-  if (subscribed && isRun && frameChar) {
-    static uint8_t batch[BLE_BUF];
-    uint16_t cap = notify_cap();
-    int blen = 0, budget = 96;
-    uint32_t mark = rtail;                   // start of what is staged but not yet delivered
-    const uint8_t* rec = nullptr;
-    uint16_t fl;
-    while ((fl = pool_peek(&rec)) != 0 && budget-- > 0) {
-      if ((uint32_t)fl + 2 > (uint32_t)cap) {
-        // Larger than one notification. This used to be a silent `continue` — the frame was
-        // skipped after `fwd++` had already counted it delivered, and it appeared in no drop
-        // counter. It is the reason a full-size ANQP answer never reached the phone.
-        if (blen > 0) { if (!emit(batch, blen)) { rtail = mark; break; } blen = 0; }
-        if (!emit_fragments(rec, fl, cap)) break;   // kept in the ring; retried next pass
-        fragged++;
-        pool_pop(fl); mark = rtail;
-        continue;
-      }
-
-      if (blen + 2 + fl > cap) {
-        if (!emit(batch, blen)) { rtail = mark; break; }
-        blen = 0; mark = rtail;
-      }
-      batch[blen++] = fl & 0xff; batch[blen++] = (fl >> 8) & 0xff;
-      memcpy(batch + blen, rec, fl); blen += fl;
-      pool_pop(fl);
-    }
-    if (blen > 0 && !emit(batch, blen)) rtail = mark;
-  } else {
-    rtail = rhead;   // discard whatever was captured while stopped or unsubscribed
-  }
+  drain_frame_notifications(now);
 
   if (now - lastStat >= 2000) {
     lastStat = now;
@@ -965,15 +976,31 @@ void loop() {
     // point of the field is to be readable from a board that may be misbehaving. `run=` is the
     // driver's actual state; `filt=`/`width=` are the *commanded* values, so that a write made
     // while stopped reads back immediately instead of after the next start.
-    char msg[576];
+    const uint32_t lastpair = rxlastpair;
+#ifdef WLC_FW_VERSION
+    // Images that state a version (the all-in-one and touch builds) also say which product and
+    // build they are, right after fw= so a truncated notification still carries them. The app's
+    // firmware update check reads these. Measured at 477 bytes with 8-digit traffic counters,
+    // under the 510-byte notification at MTU 513. Without WLC_FW_VERSION this compiles to the
+    // stable sniffer's line unchanged.
+    char msg[640];
     snprintf(msg, sizeof(msg),
-             "fw=%s product=%s build=%s version=%s run=%d poke=%d filt=%lx width=%u "
-             "cap=%lu fwd=%lu evt=%lu gasResp=%lu gasMine=%lu pp=%d poked=%lu ddrop=%lu rdrop=%lu "
+             "fw=%s product=%s build=%s version=%s rxlast=%lu/%lu rxobserved=%lu rxcontract=2 rxerr=%lu rxlen=%lu run=%d poke=%d filt=%lx width=%u "
+#else
+    char msg[512]; // Includes explicit RX-contract/refusal counters.
+    snprintf(msg, sizeof(msg),
+             "fw=%s rxlast=%lu/%lu rxobserved=%lu rxcontract=2 rxerr=%lu rxlen=%lu run=%d poke=%d filt=%lx width=%u "
+#endif
+             "cap=%lu fwd=%lu txok=%lu txrec=%lu evt=%lu gasResp=%lu gasMine=%lu pp=%d poked=%lu ddrop=%lu rdrop=%lu "
              "odrop=%lu bdrop=%lu nfail=%lu frag=%lu poolmax=%lu chfail=%lu heap=%lu mtu=%u "
              "2.4=%lu 5G=%lu ch=%u sub=%d linkstop=%lu",
-             WLC_FW_GIT, WLC_FW_PRODUCT, WLC_FW_BUILD_DATE, WLC_FW_VERSION,
+             WLC_FW_GIT,
+#ifdef WLC_FW_VERSION
+             WLC_FW_PRODUCT, WLC_FW_BUILD_DATE, WLC_FW_VERSION,
+#endif
+             (unsigned long)(lastpair >> 16), (unsigned long)(lastpair & 0xffff), (unsigned long)rxobserved, (unsigned long)rxerr, (unsigned long)rxlen,
              isRun ? 1 : 0, pokeEnable ? 1 : 0, (unsigned long)wantFilt, (unsigned)wantWidth,
-             (unsigned long)captured, (unsigned long)fwd, (unsigned long)events, (unsigned long)gasResp,
+             (unsigned long)captured, (unsigned long)fwd, (unsigned long)txok, (unsigned long)txrec, (unsigned long)events, (unsigned long)gasResp,
              (unsigned long)gasMine,
              ppN, (unsigned long)poked, (unsigned long)ddrop, (unsigned long)dropped,
              (unsigned long)odrop, (unsigned long)bdrop, (unsigned long)nfail, (unsigned long)fragged,
@@ -981,7 +1008,18 @@ void loop() {
              (unsigned long)esp_get_free_heap_size(), (unsigned)notify_cap() + 3,
              (unsigned long)cap24, (unsigned long)cap5, cur_ch, subscribed?1:0,
              (unsigned long)linkStops);
-    Serial.println(msg);
+    // HWCDC's default TX ring is 256 bytes, smaller than the BLE status. Keep
+    // a complete, compact USB line so bounded logging remains readable.
+    char usb[128];
+    const int usbLen = snprintf(usb, sizeof(usb),
+        "fw=%s rxcontract=2 run=%d ch=%u cap=%lu rxerr=%lu rxlen=%lu\n",
+        WLC_FW_GIT, isRun ? 1 : 0, cur_ch, (unsigned long)captured,
+        (unsigned long)rxerr, (unsigned long)rxlen);
+    if (usbLen > 0 && usbLen < int(sizeof(usb)) && Serial.availableForWrite() >= usbLen) {
+      Serial.write((const uint8_t*)usb, size_t(usbLen));
+    }
     if (subscribed && statChar) { statChar->setValue((uint8_t*)msg, strlen(msg)); statChar->notify(); }
   }
+  delay(1); // RTOS fairness; never spin on exhausted notification buffers.
+
 }

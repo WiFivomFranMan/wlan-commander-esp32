@@ -15,9 +15,12 @@ set(EXTRA_COMPONENT_DIRS "${WLC_DEPS_DIR}/arduino" "${WLC_DEPS_DIR}/esp-sdr/comp
 # Human release identity; the source revision remains diagnostic metadata.
 string(TIMESTAMP WLC_BUILD_DATE "%Y-%m-%d" UTC)
 string(TIMESTAMP WLC_BUILD_VERSION "%Y.%m.%d" UTC)
-execute_process(COMMAND git -C "${CMAKE_CURRENT_LIST_DIR}" rev-parse --short=12 HEAD
-    OUTPUT_VARIABLE WLC_SOURCE_REVISION OUTPUT_STRIP_TRAILING_WHITESPACE
-    ERROR_QUIET)
+# A build host gets the tree without .git, so the publisher passes -DWLC_SOURCE_REVISION=<commit>.
+if(NOT WLC_SOURCE_REVISION)
+    execute_process(COMMAND git -C "${CMAKE_CURRENT_LIST_DIR}" rev-parse --short=12 HEAD
+        OUTPUT_VARIABLE WLC_SOURCE_REVISION OUTPUT_STRIP_TRAILING_WHITESPACE
+        ERROR_QUIET)
+endif()
 if(NOT WLC_SOURCE_REVISION)
     set(WLC_SOURCE_REVISION "source-archive")
 endif()

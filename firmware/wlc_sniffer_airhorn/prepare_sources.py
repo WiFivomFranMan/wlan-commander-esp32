@@ -64,6 +64,10 @@ def generate(deps, output):
         "    if (radio_gate.load()) return;\n    NimBLEAttValue v = c->getValue();")
     sniffer = replace_once(sniffer, "static void sniffer_setup() {", ble_setup + "\nstatic void sniffer_setup() {")
     (output / "sniffer.inc").write_text(sniffer)
+    # rx4+ sniffer sources include the shared RX contract header beside the .ino.
+    contract = HERE.parent / "wlc_sniffer/wlc_rx_contract.h"
+    if contract.exists():
+        (output / "wlc_rx_contract.h").write_text(contract.read_text())
     burst = (deps / "esp-sdr/main/common/burst_serial.c").read_text()
     (output / "burst_serial.c").write_text(replace_once(burst, "#define COMMAND_SIZE 128", "#define COMMAND_SIZE 224"))
     source = deps / "esp-sdr/main/families/c5_c6_c61/receiver.c"
@@ -85,8 +89,11 @@ void wlc_sdr_dispatch(char *line) { handle_command(line); }
     device = deps / "nimble/src/NimBLEDevice.cpp"
     (output / "nimble_device.cpp").write_text(native_nimble_device(device.read_text()))
     hashes = {}
-    for path in (original, source, deps / "esp-sdr/main/common/spectrum.c", device):
-        relative = "wlc_sniffer/wlc_sniffer.ino" if path == original else str(path.relative_to(deps))
+    inputs = [original, source, deps / "esp-sdr/main/common/spectrum.c", device]
+    if contract.exists():
+        inputs.append(contract)
+    for path in inputs:
+        relative = ("wlc_sniffer/" + path.name) if path.parent == original.parent else str(path.relative_to(deps))
         hashes[relative] = hashlib.sha256(path.read_bytes()).hexdigest()
     (output / "source-manifest.json").write_text(json.dumps({
         "esp_sdr_commit": UPSTREAM, "input_sha256": hashes,
