@@ -8,7 +8,7 @@
   "rf_approval_protocol": 1,
   "max_rf_session_ms": 900000,
   "static_margin_bytes": 424,
-  "physical_flash_bytes_qualified": 8388608,
+  "physical_flash_bytes_qualified": 0,
   "image_flash_size": "4MB",
   "regions": [
     {
@@ -76,9 +76,9 @@
   "notes_url": "https://github.com/WiFivomFranMan/wlan-commander-esp32/releases/tag/c5-all-in-one-2026.11.26",
   "qualified_physical_boards": 0,
   "limitations": [
-    "Only ESP32-C5; all-in-one image qualified on 8 MB screenless hardware.",
+    "Only ESP32-C5 on 8 MB screenless hardware. Exact November 26 image hardware QA is pending.",
     "2.4 and 5 GHz only; spectrum levels are relative and uncalibrated.",
-    "Static SRAM margin is 728 bytes. Experimental release; no stable OTA promotion.",
+    "Static SRAM margin is 424 bytes in this build. Experimental release; no stable OTA promotion.",
     "RF requires device approval and per-session shielding acknowledgement. No new RF transmission qualification in this release."
   ],
   "application": {
@@ -95,5 +95,6 @@
     "firmware_enforces_signature": false
   },
   "name": "WLAN Commander C5 All-in-One",
-  "build_date": "2026-11-26"
+  "build_date": "2026-11-26",
+  "required_flash_bytes": 8388608
 }
